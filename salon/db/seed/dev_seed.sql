@@ -1,0 +1,73 @@
+-- Probni podaci za razvoj (fiksni UUID-ovi, bezbedno za ponovno pokretanje).
+-- Salon: demo -> http://demo.localhost:3000
+--
+-- Primer poziva (ponedeljak 2026-10-12, "Fade sisanje", bilo koji radnik):
+--   /api/availability?locationId=22222222-2222-4222-8222-222222222222&serviceId=33333333-3333-4333-8333-333333333331&date=2026-10-12
+
+BEGIN;
+
+INSERT INTO organizations (id, name, slug, status)
+VALUES ('11111111-1111-4111-8111-111111111111', 'Demo Salon', 'demo', 'published')
+ON CONFLICT DO NOTHING;
+
+INSERT INTO locations (id, organization_id, name, address, city, phone, slot_step_min)
+VALUES ('22222222-2222-4222-8222-222222222222', '11111111-1111-4111-8111-111111111111',
+        'Zemun centar', 'Glavna 1', 'Zemun', '+381 11 000 000', 15)
+ON CONFLICT DO NOTHING;
+
+INSERT INTO location_hours (location_id, weekday, opens_at, closes_at)
+SELECT '22222222-2222-4222-8222-222222222222', d, '08:00', '22:00' FROM generate_series(0, 5) AS d
+ON CONFLICT DO NOTHING;
+
+INSERT INTO services (id, organization_id, name, description) VALUES
+  ('33333333-3333-4333-8333-333333333331', '11111111-1111-4111-8111-111111111111', 'Fade šišanje', 'Fade sa mašinicom i makazama'),
+  ('33333333-3333-4333-8333-333333333332', '11111111-1111-4111-8111-111111111111', 'Klasično šišanje', 'Klasično šišanje makazama')
+ON CONFLICT DO NOTHING;
+
+INSERT INTO location_services (location_id, service_id, price, duration_min, buffer_min) VALUES
+  ('22222222-2222-4222-8222-222222222222', '33333333-3333-4333-8333-333333333331', 1800, 60, 0),
+  ('22222222-2222-4222-8222-222222222222', '33333333-3333-4333-8333-333333333332', 1200, 30, 0)
+ON CONFLICT DO NOTHING;
+
+INSERT INTO staff (id, organization_id, display_name, title) VALUES
+  ('44444444-4444-4444-8444-444444444441', '11111111-1111-4111-8111-111111111111', 'Marko', 'Barber'),
+  ('44444444-4444-4444-8444-444444444442', '11111111-1111-4111-8111-111111111111', 'Jovana', 'Frizerka')
+ON CONFLICT DO NOTHING;
+
+INSERT INTO staff_locations (staff_id, location_id) VALUES
+  ('44444444-4444-4444-8444-444444444441', '22222222-2222-4222-8222-222222222222'),
+  ('44444444-4444-4444-8444-444444444442', '22222222-2222-4222-8222-222222222222')
+ON CONFLICT DO NOTHING;
+
+-- Jovani fade traje 75 min (primer trajanja po zaposlenom)
+INSERT INTO staff_services (staff_id, service_id, duration_override_min) VALUES
+  ('44444444-4444-4444-8444-444444444441', '33333333-3333-4333-8333-333333333331', NULL),
+  ('44444444-4444-4444-8444-444444444441', '33333333-3333-4333-8333-333333333332', NULL),
+  ('44444444-4444-4444-8444-444444444442', '33333333-3333-4333-8333-333333333331', 75),
+  ('44444444-4444-4444-8444-444444444442', '33333333-3333-4333-8333-333333333332', NULL)
+ON CONFLICT DO NOTHING;
+
+INSERT INTO shift_templates (id, location_id, name, starts_at, ends_at) VALUES
+  ('55555555-5555-4555-8555-555555555551', '22222222-2222-4222-8222-222222222222', 'Prva smena', '08:00', '15:00'),
+  ('55555555-5555-4555-8555-555555555552', '22222222-2222-4222-8222-222222222222', 'Druga smena', '15:00', '22:00'),
+  ('55555555-5555-4555-8555-555555555553', '22222222-2222-4222-8222-222222222222', 'Cela smena', '09:00', '17:00')
+ON CONFLICT DO NOTHING;
+
+-- Marko: pon-pet prva smena, subota cela. Jovana: pon-pet druga smena.
+INSERT INTO weekly_schedule (staff_id, location_id, weekday, shift_template_id)
+SELECT '44444444-4444-4444-8444-444444444441', '22222222-2222-4222-8222-222222222222', d,
+       '55555555-5555-4555-8555-555555555551'
+FROM generate_series(0, 4) AS d
+ON CONFLICT DO NOTHING;
+
+INSERT INTO weekly_schedule (staff_id, location_id, weekday, shift_template_id) VALUES
+  ('44444444-4444-4444-8444-444444444441', '22222222-2222-4222-8222-222222222222', 5, '55555555-5555-4555-8555-555555555553')
+ON CONFLICT DO NOTHING;
+
+INSERT INTO weekly_schedule (staff_id, location_id, weekday, shift_template_id)
+SELECT '44444444-4444-4444-8444-444444444442', '22222222-2222-4222-8222-222222222222', d,
+       '55555555-5555-4555-8555-555555555552'
+FROM generate_series(0, 4) AS d
+ON CONFLICT DO NOTHING;
+
+COMMIT;
