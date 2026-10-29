@@ -106,7 +106,7 @@ Pazi na kontrast boje teksta na primarnoj boji salona.
 ## Trenutno stanje (azurirati posle svakog vecog koraka)
 
 Gotovo i **provereno** na pravoj bazi (Postgres 16 u Dockeru, Next 16.4, `package-lock.json` u repou).
-`npm test`: 78 jedinicnih testova; `npm run test:db`: 28 integracionih testova; typecheck i `next build` prolaze;
+`npm test`: 87 jedinicnih testova; `npm run test:db`: 32 integraciona testa; typecheck i `next build` prolaze;
 migracije (001-003) prolaze na praznoj bazi.
 - `src/lib/availability/`: `time.ts` (zone, DST, datumi), `schedule.ts` (`resolveShift`),
   `slots.ts` (`computeSlots`, `mergeStaffSlots`, `pickStaff`), `load.ts` (SQL upiti, `isBookableDate`).
@@ -137,6 +137,9 @@ migracije (001-003) prolaze na praznoj bazi.
 - **Panel: zaposleni** (korak 4, deo 4): `/panel/zaposleni` (profil, lokacije, usluge, nalog
   za prijavu: novi ili veza postojeceg u salonu). Kod u `src/lib/panel/staff.ts`. Dozvola
   `staff.manage` (vlasnik). Lozinka se ne upisuje u audit log.
+- **Admin: sadrzaj** (korak 5, deo 1, `docs/admin.md`): `/admin` izbor salona (sesija, ne URL),
+  `/admin/sadrzaj` naziv, status, primarna boja, tekstovi (`site_content` + istorija).
+  Izmene kroz `runAdminAction()`; salon uvek iz `sessions.active_organization_id`.
 
 Poznate odluke i ogranicenja algoritma:
 - `appointments.ends_at` = pocetak + trajanje + buffer; sama usluga mora da stane u smenu, buffer ne mora.
@@ -158,7 +161,8 @@ Poznate odluke i ogranicenja algoritma:
 4. ~~Panel vlasnika/zaposlenih: kalendar, termini, zaposleni, smene, odsustva~~ (gotovo,
    vidi `docs/panel.md`). Gotovo: termini, smene, odsustva, zaposleni.
    Svaka izmena kroz `runPanelAction()` / `ctx.require()` i `writeAudit()` u istoj transakciji.
-5. Admin panel: izbor salona, uredjivanje sadrzaja, galerije, cena.
+5. Admin panel: izbor salona, uredjivanje sadrzaja, galerije, cena. **U toku.**
+   Gotovo: izbor salona, sadrzaj (`/admin/sadrzaj`, vidi `docs/admin.md`). Sledi: cene, pa galerija.
 6. Javni sajt salona sa sadrzajem iz baze, SEO.
 7. Email obavestenja, pa SMS. Zatim custom domeni, Dockerfile i deploy na Hetzner.
 
