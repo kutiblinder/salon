@@ -21,6 +21,18 @@ Isti izgled za sve salone. Tenant iz `Host` headera, nikad iz URL parametra.
 - Schema.org `HairSalon` na svakoj stranici salona. Naslov npr. „Cenovnik · Demo Salon“.
 - Primarna boja iz `organizations.theme.primaryColor`; kontrast teksta kao u adminu.
 
+## Lokalno: sopstveni domen po salonu
+
+Nije obavezan `demo.localhost`. Svaki salon se otvara na svom hostu:
+
+1. `npm run db:seed` (upisuje `localhost.rs`, `sajt2.rs`, `sajt3.rs`)
+2. `npm run hosts:dev` (PowerShell **kao Administrator**) — `127.0.0.1` u hosts fajl
+3. `npm run dev`, pa:
+   - http://localhost.rs:3000 — Demo Salon
+   - http://sajt2.rs:3000 — Salon dva
+   - http://sajt3.rs:3000 — Salon tri
+   - http://localhost:3000/admin — platforma
+
 ## Email
 
 `RESEND_API_KEY` + `EMAIL_FROM`. Bez ključa u razvoju ide u konzolu servera. SMS nije u ovom koraku

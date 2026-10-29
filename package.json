@@ -13,7 +13,8 @@
     "test": "tsx --test \"src/**/*.test.ts\"",
     "test:db": "node --env-file=.env --import tsx --test --test-concurrency=1 \"src/**/*.dbtest.ts\"",
     "db:migrate": "node --env-file=.env --import tsx scripts/migrate.ts",
-    "db:seed": "node --env-file=.env --import tsx scripts/run-sql.ts db/seed/dev_seed.sql",
+    "db:seed": "node --env-file=.env --import tsx scripts/run-sql.ts db/seed/dev_seed.sql && node --env-file=.env --import tsx scripts/seed-users.ts && node --env-file=.env --import tsx scripts/seed-gallery.ts",
+    "hosts:dev": "node --import tsx scripts/dev-hosts.ts",
     "jobs:expire-pending": "node --env-file=.env --import tsx scripts/expire-pending.ts",
     "user:create": "node --env-file=.env --import tsx scripts/create-user.ts"
   },

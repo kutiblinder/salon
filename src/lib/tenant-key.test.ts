@@ -21,6 +21,8 @@ test('osnovni domen je pocetna platforme', () => {
 
 test('nepoznat domen se tretira kao custom domen', () => {
   assert.deepEqual(tenantKeyFromHost('frizerka-ana.rs', 'tvojsajt.rs'), { kind: 'domain', domain: 'frizerka-ana.rs' });
+  assert.deepEqual(tenantKeyFromHost('localhost.rs:3000', 'localhost'), { kind: 'domain', domain: 'localhost.rs' });
+  assert.deepEqual(tenantKeyFromHost('sajt2.rs:3000', 'localhost'), { kind: 'domain', domain: 'sajt2.rs' });
 });
 
 test('visenivovski ili nevalidan subdomen se odbija', () => {

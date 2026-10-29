@@ -125,14 +125,11 @@ function createAuth() {
   });
 }
 
-/** Domen platforme, subdomeni salona i provereni custom domeni. */
+/** Domen platforme, subdomeni salona i provereni custom domeni (sa portom u razvoju). */
 function authAllowedHosts(): string[] {
   const base = process.env.BASE_DOMAIN ?? 'localhost';
-  const hosts = [base, `*.${base}`, ...extraHosts];
-  if (base === 'localhost') {
-    hosts.push('localhost:*', '*.localhost:*');
-    for (const d of extraHosts) hosts.push(`${d}:*`);
-  }
+  const hosts = [base, `*.${base}`, `${base}:*`, `*.${base}:*`, ...extraHosts];
+  for (const d of extraHosts) hosts.push(`${d}:*`);
   return hosts;
 }
 

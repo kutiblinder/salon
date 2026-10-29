@@ -1,5 +1,11 @@
 -- Probni podaci za razvoj (fiksni UUID-ovi, bezbedno za ponovno pokretanje).
--- Salon: demo -> http://demo.localhost:3000
+-- Svaki salon na sopstvenom domenu (posle `npm run hosts:dev`):
+--   Demo Salon  -> http://localhost.rs:3000
+--   Salon dva   -> http://sajt2.rs:3000
+--   Salon tri   -> http://sajt3.rs:3000
+-- Poddomen i dalje radi: http://demo.localhost:3000
+-- Admin platforme: http://localhost:3000/admin
+-- Nalozi i lozinke: docs/dev-nalozi.md (`npm run db:seed` pravi korisnike i galeriju)
 --
 -- Primer poziva (ponedeljak 2026-10-12, "Fade sisanje", bilo koji radnik):
 --   /api/availability?locationId=22222222-2222-4222-8222-222222222222&serviceId=33333333-3333-4333-8333-333333333331&date=2026-10-12
@@ -29,10 +35,12 @@ INSERT INTO location_services (location_id, service_id, price, duration_min, buf
   ('22222222-2222-4222-8222-222222222222', '33333333-3333-4333-8333-333333333332', 1200, 30, 0)
 ON CONFLICT DO NOTHING;
 
-INSERT INTO staff (id, organization_id, display_name, title) VALUES
-  ('44444444-4444-4444-8444-444444444441', '11111111-1111-4111-8111-111111111111', 'Marko', 'Barber'),
-  ('44444444-4444-4444-8444-444444444442', '11111111-1111-4111-8111-111111111111', 'Jovana', 'Frizerka')
-ON CONFLICT DO NOTHING;
+INSERT INTO staff (id, organization_id, display_name, title, bio) VALUES
+  ('44444444-4444-4444-8444-444444444441', '11111111-1111-4111-8111-111111111111', 'Marko', 'Barber', 'Fade i klasično šišanje.'),
+  ('44444444-4444-4444-8444-444444444442', '11111111-1111-4111-8111-111111111111', 'Jovana', 'Frizerka', 'Šišanje i fade (fade 75 min).')
+ON CONFLICT (id) DO UPDATE SET
+  title = EXCLUDED.title,
+  bio = COALESCE(staff.bio, EXCLUDED.bio);
 
 INSERT INTO staff_locations (staff_id, location_id) VALUES
   ('44444444-4444-4444-8444-444444444441', '22222222-2222-4222-8222-222222222222'),
@@ -73,10 +81,104 @@ ON CONFLICT DO NOTHING;
 INSERT INTO site_content (organization_id, page, key, language, value, status) VALUES
   ('11111111-1111-4111-8111-111111111111', 'home', 'hero_title', 'sr-Latn', '"Frizer Zemun"', 'published'),
   ('11111111-1111-4111-8111-111111111111', 'home', 'hero_subtitle', 'sr-Latn', '"Šišanje, fade i nega brade u Zemunu."', 'published'),
-  ('11111111-1111-4111-8111-111111111111', 'home', 'intro', 'sr-Latn', '"Zakažite termin online. Isti nalog važi za sve naše objekte."', 'published'),
+  ('11111111-1111-4111-8111-111111111111', 'home', 'intro', 'sr-Latn', '"Zakažite termin online. Isti nalog važi za sve naše objekte. Radimo ponedeljak–subota."', 'published'),
   ('11111111-1111-4111-8111-111111111111', 'about', 'title', 'sr-Latn', '"O nama"', 'published'),
-  ('11111111-1111-4111-8111-111111111111', 'about', 'body', 'sr-Latn', '"Demo salon za razvoj platforme. Tim radi ponedeljkom–subotom."', 'published'),
-  ('11111111-1111-4111-8111-111111111111', 'contact', 'note', 'sr-Latn', '"Parking ispred objekta."', 'published')
+  ('11111111-1111-4111-8111-111111111111', 'about', 'body', 'sr-Latn', '"Porodični frizerski salon u centru Zemuna. Radimo klasično šišanje, fade i negu brade. Tim: Marko i Jovana."', 'published'),
+  ('11111111-1111-4111-8111-111111111111', 'contact', 'note', 'sr-Latn', '"Parking ispred objekta. Pozovite ili zakažite online."', 'published')
+ON CONFLICT (organization_id, page, key, language, status) DO UPDATE SET value = EXCLUDED.value;
+
+-- Dva dodatna salona, svaki na svom domenu (sajt2.rs / sajt3.rs)
+INSERT INTO organizations (id, name, slug, status) VALUES
+  ('11111111-1111-4111-8111-111111111112', 'Salon dva', 'sajt2', 'published'),
+  ('11111111-1111-4111-8111-111111111113', 'Salon tri', 'sajt3', 'published')
+ON CONFLICT DO NOTHING;
+
+INSERT INTO locations (id, organization_id, name, address, city, phone, slot_step_min) VALUES
+  ('22222222-2222-4222-8222-222222222223', '11111111-1111-4111-8111-111111111112',
+   'Novi Sad', 'Dunavska 2', 'Novi Sad', '+381 21 000 000', 15),
+  ('22222222-2222-4222-8222-222222222224', '11111111-1111-4111-8111-111111111113',
+   'Niš', 'Obrenovićeva 3', 'Niš', '+381 18 000 000', 15)
+ON CONFLICT DO NOTHING;
+
+INSERT INTO location_hours (location_id, weekday, opens_at, closes_at)
+SELECT loc, d, '09:00', '17:00'
+FROM (VALUES
+  ('22222222-2222-4222-8222-222222222223'::uuid),
+  ('22222222-2222-4222-8222-222222222224'::uuid)
+) AS l(loc)
+CROSS JOIN generate_series(0, 4) AS d
+ON CONFLICT DO NOTHING;
+
+INSERT INTO services (id, organization_id, name, description) VALUES
+  ('33333333-3333-4333-8333-333333333333', '11111111-1111-4111-8111-111111111112', 'Šišanje', 'Klasično šišanje'),
+  ('33333333-3333-4333-8333-333333333335', '11111111-1111-4111-8111-111111111112', 'Brada', 'Korekcija i oblikovanje brade'),
+  ('33333333-3333-4333-8333-333333333334', '11111111-1111-4111-8111-111111111113', 'Manikir', 'Klasičan manikir'),
+  ('33333333-3333-4333-8333-333333333336', '11111111-1111-4111-8111-111111111113', 'Pedikir', 'Klasičan pedikir')
+ON CONFLICT DO NOTHING;
+
+INSERT INTO location_services (location_id, service_id, price, duration_min, buffer_min) VALUES
+  ('22222222-2222-4222-8222-222222222223', '33333333-3333-4333-8333-333333333333', 1500, 45, 0),
+  ('22222222-2222-4222-8222-222222222223', '33333333-3333-4333-8333-333333333335', 800, 20, 0),
+  ('22222222-2222-4222-8222-222222222224', '33333333-3333-4333-8333-333333333334', 2000, 60, 0),
+  ('22222222-2222-4222-8222-222222222224', '33333333-3333-4333-8333-333333333336', 2500, 60, 0)
+ON CONFLICT DO NOTHING;
+
+INSERT INTO staff (id, organization_id, display_name, title, bio) VALUES
+  ('44444444-4444-4444-8444-444444444443', '11111111-1111-4111-8111-111111111112', 'Ana', 'Frizerka', 'Šišanje i brada u Novom Sadu.'),
+  ('44444444-4444-4444-8444-444444444444', '11111111-1111-4111-8111-111111111113', 'Ivana', 'Manikir', 'Manikir i pedikir u Nišu.')
+ON CONFLICT DO NOTHING;
+
+INSERT INTO staff_locations (staff_id, location_id) VALUES
+  ('44444444-4444-4444-8444-444444444443', '22222222-2222-4222-8222-222222222223'),
+  ('44444444-4444-4444-8444-444444444444', '22222222-2222-4222-8222-222222222224')
+ON CONFLICT DO NOTHING;
+
+INSERT INTO staff_services (staff_id, service_id, duration_override_min) VALUES
+  ('44444444-4444-4444-8444-444444444443', '33333333-3333-4333-8333-333333333333', NULL),
+  ('44444444-4444-4444-8444-444444444443', '33333333-3333-4333-8333-333333333335', NULL),
+  ('44444444-4444-4444-8444-444444444444', '33333333-3333-4333-8333-333333333334', NULL),
+  ('44444444-4444-4444-8444-444444444444', '33333333-3333-4333-8333-333333333336', NULL)
+ON CONFLICT DO NOTHING;
+
+INSERT INTO shift_templates (id, location_id, name, starts_at, ends_at) VALUES
+  ('55555555-5555-4555-8555-555555555554', '22222222-2222-4222-8222-222222222223', 'Dan', '09:00', '17:00'),
+  ('55555555-5555-4555-8555-555555555555', '22222222-2222-4222-8222-222222222224', 'Dan', '09:00', '17:00')
+ON CONFLICT DO NOTHING;
+
+INSERT INTO weekly_schedule (staff_id, location_id, weekday, shift_template_id)
+SELECT '44444444-4444-4444-8444-444444444443', '22222222-2222-4222-8222-222222222223', d,
+       '55555555-5555-4555-8555-555555555554'
+FROM generate_series(0, 4) AS d
+ON CONFLICT DO NOTHING;
+
+INSERT INTO weekly_schedule (staff_id, location_id, weekday, shift_template_id)
+SELECT '44444444-4444-4444-8444-444444444444', '22222222-2222-4222-8222-222222222224', d,
+       '55555555-5555-4555-8555-555555555555'
+FROM generate_series(0, 4) AS d
+ON CONFLICT DO NOTHING;
+
+UPDATE organizations SET theme = '{"primaryColor":"#0f766e"}'::jsonb WHERE id = '11111111-1111-4111-8111-111111111112';
+UPDATE organizations SET theme = '{"primaryColor":"#7c3aed"}'::jsonb WHERE id = '11111111-1111-4111-8111-111111111113';
+
+INSERT INTO site_content (organization_id, page, key, language, value, status) VALUES
+  ('11111111-1111-4111-8111-111111111112', 'home', 'hero_title', 'sr-Latn', '"Salon dva — Novi Sad"', 'published'),
+  ('11111111-1111-4111-8111-111111111112', 'home', 'hero_subtitle', 'sr-Latn', '"Šišanje i brada u Dunavskoj."', 'published'),
+  ('11111111-1111-4111-8111-111111111112', 'home', 'intro', 'sr-Latn', '"Zakažite online. Radimo ponedeljak–petak, 9–17h."', 'published'),
+  ('11111111-1111-4111-8111-111111111112', 'about', 'title', 'sr-Latn', '"O nama"', 'published'),
+  ('11111111-1111-4111-8111-111111111112', 'about', 'body', 'sr-Latn', '"Mali salon u centru Novog Sada. Ana radi šišanje i bradu."', 'published'),
+  ('11111111-1111-4111-8111-111111111112', 'contact', 'note', 'sr-Latn', '"Ulaz iz Dunavske. Zakažite online ili nas pozovite."', 'published'),
+  ('11111111-1111-4111-8111-111111111113', 'home', 'hero_title', 'sr-Latn', '"Salon tri — Niš"', 'published'),
+  ('11111111-1111-4111-8111-111111111113', 'home', 'hero_subtitle', 'sr-Latn', '"Manikir i pedikir u Obrenovićevoj."', 'published'),
+  ('11111111-1111-4111-8111-111111111113', 'home', 'intro', 'sr-Latn', '"Zakažite online. Radimo ponedeljak–petak, 9–17h."', 'published'),
+  ('11111111-1111-4111-8111-111111111113', 'about', 'title', 'sr-Latn', '"O nama"', 'published'),
+  ('11111111-1111-4111-8111-111111111113', 'about', 'body', 'sr-Latn', '"Salon za negu ruku i stopala u Nišu. Ivana radi manikir i pedikir."', 'published'),
+  ('11111111-1111-4111-8111-111111111113', 'contact', 'note', 'sr-Latn', '"Objekat je u pešačkoj zoni. Zakažite online."', 'published')
+ON CONFLICT (organization_id, page, key, language, status) DO UPDATE SET value = EXCLUDED.value;
+
+INSERT INTO organization_domains (domain, organization_id, verified_at) VALUES
+  ('localhost.rs', '11111111-1111-4111-8111-111111111111', now()),
+  ('sajt2.rs', '11111111-1111-4111-8111-111111111112', now()),
+  ('sajt3.rs', '11111111-1111-4111-8111-111111111113', now())
 ON CONFLICT DO NOTHING;
 
 COMMIT;

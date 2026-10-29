@@ -178,16 +178,18 @@ Potrebno: Git, Docker Desktop (pokrenut), Node.js 22+ (LTS). Windows projekat: `
 ```
 cp .env.example .env              (PowerShell: Copy-Item .env.example .env)
 npm install
-docker compose up -d              # PostgreSQL
+docker compose up -d              # PostgreSQL + pgAdmin (http://127.0.0.1:5050)
 npm run db:migrate                # primeni migracije
-npm run db:seed                   # probni salon "demo" (opciono)
+npm run db:seed                   # saloni, sadrzaj, nalozi (docs/dev-nalozi.md)
+npm run hosts:dev                 # hosts fajl (PowerShell kao Administrator, jednom)
 npm run user:create '--' --platform-admin --email ti@primer.rs --name "Ime"   # tvoj admin nalog
-npm run dev                       # salon: http://demo.localhost:3000, platforma: http://localhost:3000/admin
+npm run dev                       # http://localhost.rs:3000, http://sajt2.rs:3000, http://sajt3.rs:3000
+                                  # platforma: http://localhost:3000/admin
 npm test                          # jedinicni testovi (bez baze)
 npm run test:db                   # integracioni testovi (baza mora da radi)
 npm run typecheck
 ```
-`*.localhost` radi u Chrome/Edge/Firefox bez podesavanja hosts fajla.
+`localhost.rs` / `sajt2.rs` / `sajt3.rs` zahtevaju `npm run hosts:dev`. `*.localhost` radi u browseru i bez toga.
 Provera: `http://localhost:3000/api/health`. Primer: vidi komentar na vrhu `db/seed/dev_seed.sql`.
 Reset baze: `docker compose down -v`, pa `up -d` i `npm run db:migrate`.
 

@@ -40,3 +40,4 @@ kao korisnika. Prijava: nalog sa `organization_id` NULL i ulogom `admin` na plat
 - Posle DNS A/AAAA na VPS, admin oznaci domen kao proveren (`verified_at`). Caddy pita
   `GET /api/tls-ask?domain=` pre izdavanja sertifikata (samo platforma, postojeci slug, ili proveren domen).
 - `www` i apex se tretiraju kao isti salon ako je jedan od njih u tabeli.
+- Lokalno: `npm run hosts:dev`, pa npr. http://localhost.rs:3000 (ne mora `demo.localhost`).
