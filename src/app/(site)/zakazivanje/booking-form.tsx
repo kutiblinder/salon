@@ -3,6 +3,7 @@
 import { useMemo, useState } from 'react';
 import type { BookingCatalog } from '@/lib/site/types';
 import { formatPrice } from '@/lib/panel/format';
+import { DateCalendar } from './date-calendar';
 
 const inputClass = 'mt-1 block w-full rounded-md border border-neutral-300 px-3 py-2 text-base';
 const btnClass = 'min-h-11 rounded-md border border-neutral-300 px-3 text-sm';
@@ -13,11 +14,13 @@ export function BookingForm({
   catalog,
   initialLocationId,
   initialServiceId,
+  guestConfirmEmail,
   client,
 }: {
   catalog: BookingCatalog;
   initialLocationId?: string;
   initialServiceId?: string;
+  guestConfirmEmail: boolean;
   client: { name: string; email: string; phone: string | null } | null;
 }) {
   const defaultLoc =
@@ -109,9 +112,9 @@ export function BookingForm({
       }
       setDone({
         message:
-          data.appointment?.status === 'confirmed'
-            ? 'Termin je zakazan.'
-            : 'Termin je rezervisan. Potvrdite ga linkom koji stiže na email (u razvoju je u konzoli servera).',
+          data.appointment?.status === 'pending' || guestConfirmEmail
+            ? 'Termin je rezervisan. Potvrdite ga linkom koji stiže na email (u razvoju je u konzoli servera). Ako ne potvrdite u roku od sat vremena, termin se oslobađa.'
+            : 'Termin je zakazan.',
         manageUrl: data.devManageUrl,
       });
     } catch {
@@ -241,19 +244,21 @@ export function BookingForm({
       )}
 
       {offer && (
-        <label className="block text-sm font-medium">
-          Datum
-          <input
-            type="date"
-            className={inputClass}
-            value={date}
-            onChange={(e) => {
-              setDate(e.target.value);
-              loadSlots(e.target.value);
-            }}
-            required
-          />
-        </label>
+        <DateCalendar
+          key={`${locationId}-${serviceId}-${staffId}`}
+          locationId={locationId}
+          serviceId={serviceId}
+          staffId={staffId}
+          value={date}
+          onChange={(next) => {
+            setDate(next);
+            if (next) loadSlots(next);
+            else {
+              setSlots(null);
+              setSlotStart('');
+            }
+          }}
+        />
       )}
 
       {loading && <p className="text-sm text-neutral-600">Učitavanje…</p>}

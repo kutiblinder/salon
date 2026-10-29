@@ -4,7 +4,14 @@ const nextConfig: NextConfig = {
   output: 'standalone',
   serverExternalPackages: ['sharp'],
   // Localni custom domeni (npm run hosts:dev). Bez ovoga Next blokira /_next JS.
-  allowedDevOrigins: ['localhost.rs', 'sajt2.rs', 'sajt3.rs'],
+  allowedDevOrigins: [
+    'ateljekosic.rs',
+    'zenmasaza.rs',
+    'bellanails.rs',
+    'atelje.localhost',
+    'zen.localhost',
+    'bella.localhost',
+  ],
   experimental: {
     serverActions: {
       bodySizeLimit: '8mb',

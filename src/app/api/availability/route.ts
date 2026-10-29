@@ -12,6 +12,14 @@ const DATE = /^\d{4}-\d{2}-\d{2}$/;
  * Salon se odredjuje iz Host headera, ne iz parametara.
  */
 export async function GET(request: Request) {
+  const tenant = await resolveTenantByHost(request.headers.get('host'));
+  if (!tenant || tenant.status === 'inactive') {
+    return Response.json({ error: 'tenant_not_found' }, { status: 404 });
+  }
+  if (tenant.status !== 'published') {
+    return Response.json({ error: 'not_published' }, { status: 403 });
+  }
+
   const params = new URL(request.url).searchParams;
   const locationId = params.get('locationId') ?? '';
   const serviceId = params.get('serviceId') ?? '';
@@ -23,12 +31,6 @@ export async function GET(request: Request) {
   }
   if (!DATE.test(date) || Number.isNaN(Date.parse(`${date}T00:00:00Z`))) {
     return Response.json({ error: 'invalid_date' }, { status: 400 });
-  }
-
-  const tenant = await resolveTenantByHost(request.headers.get('host'));
-  if (!tenant) return Response.json({ error: 'tenant_not_found' }, { status: 404 });
-  if (tenant.status !== 'published') {
-    return Response.json({ error: 'not_published' }, { status: 403 });
   }
 
   const nowMs = Date.now();

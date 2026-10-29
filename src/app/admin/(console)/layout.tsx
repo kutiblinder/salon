@@ -10,6 +10,9 @@ export default async function AdminConsoleLayout({ children }: { children: React
   const items: NavItem[] = [{ href: '/admin', label: 'Saloni' }];
   let salonName: string | null = null;
   if (session.activeOrganizationId) {
+    items.push({ href: '/admin/nalozi', label: 'Nalozi' });
+    items.push({ href: '/admin/zaposleni', label: 'Zaposleni' });
+    items.push({ href: '/admin/objekti', label: 'Objekti' });
     items.push({ href: '/admin/sadrzaj', label: 'Sadržaj' });
     items.push({ href: '/admin/cene', label: 'Cene' });
     items.push({ href: '/admin/galerija', label: 'Galerija' });

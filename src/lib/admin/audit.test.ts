@@ -5,6 +5,10 @@ import { actionLabel, actorLabel, formatAuditAt, formatAuditValue, objectTypeLab
 describe('audit labels', () => {
   it('prevodi poznate akcije, ostale ostavlja kako jesu', () => {
     assert.equal(actionLabel('content.update'), 'Izmena sadržaja');
+    assert.equal(actionLabel('organization.create'), 'Novi salon');
+    assert.equal(actionLabel('locations.create'), 'Novi objekat');
+    assert.equal(objectTypeLabel('location'), 'objekat');
+    assert.equal(objectTypeLabel('user'), 'nalog');
     assert.equal(actionLabel('nepoznato.x'), 'nepoznato.x');
     assert.equal(objectTypeLabel('service'), 'usluga');
     assert.equal(objectTypeLabel('xyz'), 'xyz');

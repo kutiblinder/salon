@@ -1,5 +1,6 @@
 import type { PoolClient } from 'pg';
 import { writeAudit } from '../audit';
+import { dropOrganizationSessions } from '../staff-account';
 import { AdminError, type AdminContext } from './core';
 import {
   CONTENT_FIELDS,
@@ -7,8 +8,10 @@ import {
   fieldId,
   findContentField,
   type ContentBundle,
+  type PublishStatus,
   type SalonSettings,
 } from './content-types';
+import { parseSlug } from './organizations-parse';
 import { parseHexColor } from './theme';
 
 export type { ContentBundle, SalonSettings } from './content-types';
@@ -20,8 +23,14 @@ export function parseOrgName(raw: unknown): string | null {
   return name.length >= 2 && name.length <= 80 ? name : null;
 }
 
-export function parsePublishStatus(raw: unknown): 'draft' | 'published' | null {
-  return raw === 'draft' || raw === 'published' ? raw : null;
+export function parsePublishStatus(raw: unknown): PublishStatus | null {
+  return raw === 'draft' || raw === 'published' || raw === 'inactive' ? raw : null;
+}
+
+export function publishStatusLabel(status: string): string {
+  if (status === 'published') return 'objavljen';
+  if (status === 'inactive') return 'neaktivan';
+  return 'nacrt';
 }
 
 /** Prazno = obrisi sadrzaj; predugo = undefined. */
@@ -57,13 +66,17 @@ export async function loadContent(client: PoolClient, ctx: AdminContext): Promis
   return { salon: ctx.salon, values };
 }
 
+const UNIQUE_VIOLATION = '23505';
+
 export async function saveContent(
   client: PoolClient,
   ctx: AdminContext,
   input: {
     name: string;
-    status: 'draft' | 'published';
+    slug: string;
+    status: PublishStatus;
     primaryColor: string | null;
+    guestConfirmEmail: boolean;
     values: Record<string, string>;
   },
 ): Promise<void> {
@@ -77,12 +90,28 @@ export async function saveContent(
   );
   const previous = new Map(oldContent.rows.map((r) => [fieldId(r), r]));
 
-  await client.query(`UPDATE organizations SET name = $2, status = $3, theme = jsonb_set(theme, '{primaryColor}', $4::jsonb, true) WHERE id = $1`, [
-    ctx.organizationId,
-    input.name,
-    input.status,
-    JSON.stringify(input.primaryColor),
-  ]);
+  try {
+    await client.query(
+      `UPDATE organizations
+          SET name = $2, slug = $3, status = $4,
+              theme = jsonb_set(theme, '{primaryColor}', $5::jsonb, true),
+              guest_confirm_email = $6
+        WHERE id = $1`,
+      [
+        ctx.organizationId,
+        input.name,
+        input.slug,
+        input.status,
+        JSON.stringify(input.primaryColor),
+        input.guestConfirmEmail,
+      ],
+    );
+  } catch (error) {
+    if ((error as { code?: string }).code === UNIQUE_VIOLATION) {
+      throw new AdminError('Taj poddomen je već zauzet.');
+    }
+    throw error;
+  }
 
   const changed: Record<string, { old: string; new: string }> = {};
   for (const field of CONTENT_FIELDS) {
@@ -114,7 +143,12 @@ export async function saveContent(
     }
   }
 
-  const salonChanged = oldSalon.name !== input.name || oldSalon.status !== input.status || oldSalon.primaryColor !== input.primaryColor;
+  const salonChanged =
+    oldSalon.name !== input.name ||
+    oldSalon.slug !== input.slug ||
+    oldSalon.status !== input.status ||
+    oldSalon.primaryColor !== input.primaryColor ||
+    oldSalon.guestConfirmEmail !== input.guestConfirmEmail;
   if (!salonChanged && Object.keys(changed).length === 0) return;
 
   await writeAudit(client, {
@@ -125,34 +159,57 @@ export async function saveContent(
     objectId: ctx.organizationId,
     oldValue: {
       name: oldSalon.name,
+      slug: oldSalon.slug,
       status: oldSalon.status,
       primaryColor: oldSalon.primaryColor,
+      guestConfirmEmail: oldSalon.guestConfirmEmail,
       fields: Object.fromEntries(Object.entries(changed).map(([k, v]) => [k, v.old])),
     },
     newValue: {
       name: input.name,
+      slug: input.slug,
       status: input.status,
       primaryColor: input.primaryColor,
+      guestConfirmEmail: input.guestConfirmEmail,
       fields: Object.fromEntries(Object.entries(changed).map(([k, v]) => [k, v.new])),
     },
   });
+  if (input.status === 'inactive' && oldSalon.status !== 'inactive') {
+    await dropOrganizationSessions(client, ctx.organizationId);
+  }
 }
 
 export function parseContentForm(
   raw: {
     name: unknown;
+    slug: unknown;
     status: unknown;
     primaryColor: unknown;
+    guestConfirmEmail?: unknown;
     values: Record<string, unknown>;
   },
-): { name: string; status: 'draft' | 'published'; primaryColor: string | null; values: Record<string, string> } | { error: string } {
+):
+  | {
+      name: string;
+      slug: string;
+      status: PublishStatus;
+      primaryColor: string | null;
+      guestConfirmEmail: boolean;
+      values: Record<string, string>;
+    }
+  | { error: string } {
   const name = parseOrgName(raw.name);
   if (!name) return { error: 'Naziv salona mora imati 2–80 karaktera.' };
+  const slug = parseSlug(raw.slug);
+  if (!slug) {
+    return { error: 'Poddomen: 2–50 znakova, mala slova, brojevi i crtica (npr. frizer-ana).' };
+  }
   const status = parsePublishStatus(raw.status);
   if (!status) return { error: 'Izaberite status sajta.' };
   const colorRaw = typeof raw.primaryColor === 'string' ? raw.primaryColor.trim() : '';
   const primaryColor = colorRaw === '' ? null : parseHexColor(colorRaw);
   if (colorRaw !== '' && !primaryColor) return { error: 'Boja mora biti u formatu #RRGGBB.' };
+  const guestConfirmEmail = raw.guestConfirmEmail === true || raw.guestConfirmEmail === '1' || raw.guestConfirmEmail === 'on';
 
   const values: Record<string, string> = {};
   for (const field of CONTENT_FIELDS) {
@@ -160,5 +217,5 @@ export function parseContentForm(
     if (parsed === undefined) return { error: `Polje „${field.label}“ je predugačko.` };
     values[fieldId(field)] = parsed;
   }
-  return { name, status, primaryColor, values };
+  return { name, slug, status, primaryColor, guestConfirmEmail, values };
 }

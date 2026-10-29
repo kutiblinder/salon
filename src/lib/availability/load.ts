@@ -1,5 +1,5 @@
 import type { PoolClient } from 'pg';
-import { addDays, localDateOf, weekdayMonday0, zonedTimeToUtcMs } from './time';
+import { addDays, eachDateInclusive, localDateOf, weekdayMonday0, zonedTimeToUtcMs } from './time';
 import { resolveShift, type ExceptionEntry, type WeeklyEntry } from './schedule';
 import { computeSlots, mergeStaffSlots, type Interval } from './slots';
 
@@ -172,49 +172,186 @@ export async function getAvailability(
     [...windowParams, q.organizationId],
   );
 
-  const groupIntervals = (rows: IntervalRow[]): Map<string, Interval[]> => {
-    const m = new Map<string, Interval[]>();
-    for (const r of rows) {
-      const list = m.get(r.staff_id) ?? [];
-      list.push({ start: Number(r.s), end: Number(r.e) });
-      m.set(r.staff_id, list);
-    }
-    return m;
-  };
   const timeOffByStaff = groupIntervals(timeOffRes.rows);
   const busyByStaff = groupIntervals(busyRes.rows);
 
-  // 5) Slobodni pocetci po zaposlenom, pa spajanje
   const earliestStartMs = q.nowMs + (q.minNoticeMin ?? MIN_NOTICE_MIN) * 60_000;
-  const perStaff = staff.map((s) => {
-    const weekly: WeeklyEntry[] = weeklyRes.rows
+  result.slots = mergedSlotsForDate({
+    date: q.date,
+    locationId: q.locationId,
+    timezone: loc.timezone,
+    stepMin: loc.slot_step_min,
+    bufferMin: loc.buffer_min,
+    staff: result.staff,
+    weekly: weeklyRes.rows,
+    exceptions: exceptionRes.rows,
+    timeOffByStaff,
+    busyByStaff,
+    earliestStartMs,
+  }).map((m) => ({
+    start: new Date(m.start).toISOString(),
+    staffIds: m.staffIds,
+  }));
+  return result;
+}
+
+export interface OpenDatesQuery {
+  organizationId: string;
+  locationId: string;
+  serviceId: string;
+  staffId: string | null;
+  from: string;
+  to: string;
+  nowMs: number;
+}
+
+/**
+ * Datumi u [from, to] na koj ima bar jedan slobodan slot (isti algoritam kao getAvailability).
+ * Prošli dani, vikendi bez smene i popunjeni dani nisu u listi.
+ */
+export async function getOpenDates(
+  client: PoolClient,
+  q: OpenDatesQuery,
+): Promise<{ timezone: string; dates: string[] } | null> {
+  const ls = await client.query<LocationServiceRow>(
+    `SELECT l.timezone, l.slot_step_min, ls.duration_min, ls.buffer_min, ls.price::text AS price,
+            ls.currency, s.name AS service_name
+       FROM locations l
+       JOIN location_services ls ON ls.location_id = l.id AND ls.is_active
+       JOIN services s ON s.id = ls.service_id AND s.is_active AND s.organization_id = l.organization_id
+      WHERE l.id = $1 AND l.organization_id = $2 AND l.is_active AND ls.service_id = $3`,
+    [q.locationId, q.organizationId, q.serviceId],
+  );
+  const loc = ls.rows[0];
+  if (!loc) return null;
+
+  const staffRes = await client.query<StaffRow>(
+    `SELECT st.id, st.display_name, ss.duration_override_min
+       FROM staff st
+       JOIN staff_locations sl ON sl.staff_id = st.id AND sl.location_id = $1
+       JOIN staff_services ss ON ss.staff_id = st.id AND ss.service_id = $2
+      WHERE st.organization_id = $3 AND st.is_active
+        AND ($4::bigint IS NULL OR st.id = $4::bigint)
+      ORDER BY st.sort_order, st.display_name`,
+    [q.locationId, q.serviceId, q.organizationId, q.staffId],
+  );
+  const staff = staffRes.rows.map((s) => ({
+    id: s.id,
+    durationMin: s.duration_override_min ?? loc.duration_min,
+  }));
+  if (staff.length === 0) return { timezone: loc.timezone, dates: [] };
+
+  const staffIds = staff.map((s) => s.id);
+  const rangeStart = new Date(zonedTimeToUtcMs(q.from, '00:00', loc.timezone)).toISOString();
+  const rangeEnd = new Date(zonedTimeToUtcMs(addDays(q.to, 1), '00:00', loc.timezone)).toISOString();
+
+  const weeklyRes = await client.query<WeeklyRow>(
+    `SELECT ws.staff_id, ws.location_id, ws.weekday,
+            to_char(t.starts_at, 'HH24:MI') AS start_hm, to_char(t.ends_at, 'HH24:MI') AS end_hm
+       FROM weekly_schedule ws
+       JOIN shift_templates t ON t.id = ws.shift_template_id
+      WHERE ws.staff_id = ANY($1::bigint[])`,
+    [staffIds],
+  );
+  const exceptionRes = await client.query<ExceptionRow>(
+    `SELECT se.staff_id, se.location_id, to_char(se.work_date, 'YYYY-MM-DD') AS work_date,
+            to_char(t.starts_at, 'HH24:MI') AS start_hm, to_char(t.ends_at, 'HH24:MI') AS end_hm
+       FROM schedule_exceptions se
+       LEFT JOIN shift_templates t ON t.id = se.shift_template_id
+      WHERE se.staff_id = ANY($1::bigint[]) AND se.work_date BETWEEN $2::date AND $3::date`,
+    [staffIds, q.from, q.to],
+  );
+  const windowParams = [staffIds, rangeStart, rangeEnd];
+  const timeOffRes = await client.query<IntervalRow>(
+    `SELECT staff_id,
+            floor(extract(epoch FROM lower(during)) * 1000)::bigint::text AS s,
+            floor(extract(epoch FROM upper(during)) * 1000)::bigint::text AS e
+       FROM time_off
+      WHERE staff_id = ANY($1::bigint[]) AND during && tstzrange($2::timestamptz, $3::timestamptz)`,
+    windowParams,
+  );
+  const busyRes = await client.query<IntervalRow>(
+    `SELECT staff_id,
+            floor(extract(epoch FROM starts_at) * 1000)::bigint::text AS s,
+            floor(extract(epoch FROM ends_at) * 1000)::bigint::text AS e
+       FROM appointments
+      WHERE organization_id = $4 AND staff_id = ANY($1::bigint[])
+        AND status IN ('pending', 'confirmed')
+        AND during && tstzrange($2::timestamptz, $3::timestamptz)`,
+    [...windowParams, q.organizationId],
+  );
+
+  const timeOffByStaff = groupIntervals(timeOffRes.rows);
+  const busyByStaff = groupIntervals(busyRes.rows);
+  const earliestStartMs = q.nowMs + MIN_NOTICE_MIN * 60_000;
+  const dates: string[] = [];
+  for (const date of eachDateInclusive(q.from, q.to)) {
+    if (!isBookableDate(date, q.nowMs, loc.timezone)) continue;
+    const slots = mergedSlotsForDate({
+      date,
+      locationId: q.locationId,
+      timezone: loc.timezone,
+      stepMin: loc.slot_step_min,
+      bufferMin: loc.buffer_min,
+      staff,
+      weekly: weeklyRes.rows,
+      exceptions: exceptionRes.rows.filter((r) => r.work_date === date),
+      timeOffByStaff,
+      busyByStaff,
+      earliestStartMs,
+    });
+    if (slots.length > 0) dates.push(date);
+  }
+  return { timezone: loc.timezone, dates };
+}
+
+function groupIntervals(rows: IntervalRow[]): Map<string, Interval[]> {
+  const m = new Map<string, Interval[]>();
+  for (const r of rows) {
+    const list = m.get(r.staff_id) ?? [];
+    list.push({ start: Number(r.s), end: Number(r.e) });
+    m.set(r.staff_id, list);
+  }
+  return m;
+}
+
+function mergedSlotsForDate(args: {
+  date: string;
+  locationId: string;
+  timezone: string;
+  stepMin: number;
+  bufferMin: number;
+  staff: { id: string; durationMin: number }[];
+  weekly: WeeklyRow[];
+  exceptions: ExceptionRow[];
+  timeOffByStaff: Map<string, Interval[]>;
+  busyByStaff: Map<string, Interval[]>;
+  earliestStartMs: number;
+}): { start: number; staffIds: string[] }[] {
+  const perStaff = args.staff.map((s) => {
+    const weekly: WeeklyEntry[] = args.weekly
       .filter((r) => r.staff_id === s.id)
       .map((r) => ({ locationId: r.location_id, weekday: r.weekday, shift: { start: r.start_hm, end: r.end_hm } }));
-    const exceptions: ExceptionEntry[] = exceptionRes.rows
+    const exceptions: ExceptionEntry[] = args.exceptions
       .filter((r) => r.staff_id === s.id)
       .map((r) => ({
         workDate: r.work_date,
         locationId: r.location_id,
         shift: r.start_hm && r.end_hm ? { start: r.start_hm, end: r.end_hm } : null,
       }));
-    const shift = resolveShift({ date: q.date, locationId: q.locationId, weekly, exceptions });
+    const shift = resolveShift({ date: args.date, locationId: args.locationId, weekly, exceptions });
     const starts = computeSlots({
-      date: q.date,
-      timezone: loc.timezone,
-      stepMin: loc.slot_step_min,
-      durationMin: s.duration_override_min ?? loc.duration_min,
-      bufferMin: loc.buffer_min,
+      date: args.date,
+      timezone: args.timezone,
+      stepMin: args.stepMin,
+      durationMin: s.durationMin,
+      bufferMin: args.bufferMin,
       shift,
-      timeOff: timeOffByStaff.get(s.id) ?? [],
-      busy: busyByStaff.get(s.id) ?? [],
-      earliestStartMs,
+      timeOff: args.timeOffByStaff.get(s.id) ?? [],
+      busy: args.busyByStaff.get(s.id) ?? [],
+      earliestStartMs: args.earliestStartMs,
     });
     return { staffId: s.id, starts };
   });
-
-  result.slots = mergeStaffSlots(perStaff).map((m) => ({
-    start: new Date(m.start).toISOString(),
-    staffIds: m.staffIds,
-  }));
-  return result;
+  return mergeStaffSlots(perStaff);
 }

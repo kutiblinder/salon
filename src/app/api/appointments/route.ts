@@ -1,7 +1,7 @@
 import { withTenant } from '@/lib/db';
 import { resolveTenantByHost } from '@/lib/tenant';
 import { getCurrentSession } from '@/lib/auth/session';
-import { PENDING_TTL_MIN, createClientAppointment, createGuestAppointment } from '@/lib/appointments/create';
+import { createClientAppointment, createGuestAppointment } from '@/lib/appointments/create';
 import { parseClientBooking, parseGuestBooking } from '@/lib/appointments/validate';
 import { sendGuestBookingEmail } from '@/lib/notify';
 import { clientKey, rateLimit } from '@/lib/rate-limit';
@@ -30,7 +30,9 @@ export async function POST(request: Request) {
 
   const host = request.headers.get('host');
   const tenant = await resolveTenantByHost(host);
-  if (!tenant) return Response.json({ error: 'tenant_not_found' }, { status: 404 });
+  if (!tenant || tenant.status === 'inactive') {
+    return Response.json({ error: 'tenant_not_found' }, { status: 404 });
+  }
   if (tenant.status !== 'published') {
     return Response.json({ error: 'not_published', message: 'Zakazivanje nije dostupno.' }, { status: 403 });
   }
@@ -79,7 +81,7 @@ export async function POST(request: Request) {
       startsAt: result.appointment.startsAt,
       timezone: result.appointment.timezone,
       manageUrl,
-      pendingTtlMin: PENDING_TTL_MIN,
+      requiresConfirm: result.appointment.status === 'pending',
     });
   } catch (error) {
     console.error('Booking email failed', error);

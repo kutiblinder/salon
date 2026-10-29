@@ -78,9 +78,8 @@ logo, boje, sadrzaj, usluge i cene. Gradi se sam vlasnik projekta, za pocetak ne
 - Termini (`appointments`): registrovan klijent (`client_user_id`) ILI gost (ime + telefon).
   Cena, naziv i trajanje se kopiraju u termin (snapshot). Duplo zakazivanje spreceno bazom:
   exclusion constraint `no_double_booking` (`staff_id` + `tstzrange`).
-- Gost-termin pocinje kao `pending` i istice (`pending_expires_at`): treba pozadinski posao koji
-  istekle prebacuje u otkazane. Gost potvrdjuje SMS kodom ili email linkom; svaki termin ima
-  link za otkazivanje bez logovanja (cuva se samo hash tokena).
+- Gost-termin: po salonu (`guest_confirm_email`). Iskljuceno = odmah `confirmed` + link za otkaz.
+  Ukljuceno = `pending`, gost potvrdjuje email linkom u roku od 60 min, inace se slot oslobadja.
 - Sadrzaj sajta: `site_content` (kljuc-vrednost, dozvoljeni kljucevi definisani u kodu),
   `site_content_history`, `media`, `gallery_items`. Cenovnik se generise iz `location_services`.
 - Pojednostavljenja u MVP-u: jedna smena po danu po zaposlenom, smene ne prelaze ponoc,
@@ -110,16 +109,17 @@ Pazi na kontrast boje teksta na primarnoj boji salona.
 
 Gotovo i **provereno** na pravoj bazi (Postgres 16 u Dockeru, Next 16.4, `package-lock.json` u repou).
 `npm test`: 108 jedinicnih testova; `npm run test:db`: 43 integraciona testa; typecheck i `next build` prolaze;
-migracije (001-003) prolaze na praznoj bazi.
+migracije (001-004) prolaze na praznoj bazi.
 ID-evi su `bigint` identity (u pgAdmin-u 1, 2, 3), ne UUID.
 - `src/lib/availability/`: `time.ts` (zone, DST, datumi), `schedule.ts` (`resolveShift`),
   `slots.ts` (`computeSlots`, `mergeStaffSlots`, `pickStaff`), `load.ts` (SQL upiti, `isBookableDate`).
 - `src/lib/tenant-key.ts`, `src/lib/tenant.ts`: Host -> slug / custom domen / platforma.
 - `src/lib/db.ts` (`withTenant()`), `scripts/migrate.ts`, `scripts/run-sql.ts`, `db/seed/dev_seed.sql`.
-- `GET /api/health`, `GET /api/availability`.
-- **Zakazivanje gosta** (korak 3, odluke u `docs/zakazivanje.md`): `POST /api/appointments`,
-  `POST /api/appointments/confirm|cancel` (token iz linka), stranica `/termin/[token]`,
-  `npm run jobs:expire-pending`, migracija `002_appointment_booking.sql`. Kod u `src/lib/appointments/`.
+- `GET /api/health`, `GET /api/availability`, `GET /api/availability/dates`.
+- **Zakazivanje gosta** (korak 3, odluke u `docs/zakazivanje.md`): `POST /api/appointments`
+  (odmah `confirmed`), `POST /api/appointments/cancel` (token iz linka; `confirm` ostaje za stare
+  `pending` redove), stranica `/termin/[token]`, `npm run jobs:expire-pending`, migracija
+  `002_appointment_booking.sql`. Kod u `src/lib/appointments/`.
   Trka dva zahteva za isti termin je pokrivena testom (`booking.dbtest.ts`): `23P01` -> `slot_taken`,
   a kod "bilo koji radnik" prelazi na sledeceg slobodnog.
 - **Autentifikacija i dozvole** (korak 2, `docs/autentifikacija.md`): Better Auth u `src/lib/auth/`
@@ -131,9 +131,11 @@ ID-evi su `bigint` identity (u pgAdmin-u 1, 2, 3), ne UUID.
   Provereno preko HTTP-a: isti email u dva salona su dva naloga, kolacic jednog salona ne vazi
   u drugom ni na platformi, nalozi salona se ne mogu prijaviti na platformu i obrnuto.
 - **Panel: termini** (korak 4, deo 1, `docs/panel.md`): `/panel/termini` (dnevni prikaz po lokaciji
-  i radniku, promena statusa, unos termina telefonom koji je odmah potvrdjen). Izmene su Server
-  Actions kroz `runPanelAction()` (`src/lib/panel/context.ts`), dozvola nad objektom iz baze
-  (`ctx.require`), audit u istoj transakciji. Logika u `src/lib/panel/` (`core.ts`, `appointments.ts`).
+  i radniku, promena statusa, unos termina telefonom koji je odmah potvrdjen). Zaposleni vidi samo
+  svoje; vlasnik/menadzer vidi ime radnika i filtrira po njemu. Prijava clanstva ide na `/panel`
+  (pa na termine). Izmene su Server Actions kroz `runPanelAction()` (`src/lib/panel/context.ts`),
+  dozvola nad objektom iz baze (`ctx.require`), audit u istoj transakciji. Logika u `src/lib/panel/`
+  (`core.ts`, `appointments.ts`).
 - **Panel: smene** (korak 4, deo 2): `/panel/smene` (sabloni, nedeljni raspored, izuzeci za datum).
   Kod u `src/lib/panel/schedule.ts`. Zaposleni menja samo svoj raspored; sablone menja vlasnik/menadzer.
 - **Panel: odsustva** (korak 4, deo 3): `/panel/odsustva` (`time_off`: pauza / godisnji / bolovanje).
@@ -142,15 +144,26 @@ ID-evi su `bigint` identity (u pgAdmin-u 1, 2, 3), ne UUID.
   za prijavu: novi ili veza postojeceg u salonu). Kod u `src/lib/panel/staff.ts`. Dozvola
   `staff.manage` (vlasnik). Lozinka se ne upisuje u audit log.
 - **Admin: sadrzaj** (korak 5, deo 1, `docs/admin.md`): `/admin` izbor salona (sesija, ne URL),
-  `/admin/sadrzaj` naziv, status, primarna boja, tekstovi (`site_content` + istorija).
+  novi salon na istoj listi (`runPlatformAction()`, nacrt + prvi objekat, ulazak u sesiju),
+  `/admin/nalozi` vlasnik / menadzer / zaposleni u izabranom salonu (lozinka jednom, nije u auditu),
+  `/admin/objekti` vise lokacija (adresa, sati; cene se kopiraju sa postojeceg),
+  `/admin/sadrzaj` naziv, poddomen (slug), status (`draft` / `published` / `inactive`), primarna boja, tekstovi
+  (`site_content` + istorija). `/admin/zaposleni` profil (ime, objekti, usluge, nalog), deaktivacija i brisanje.
+  Brisanje salona sa liste
+  (`/admin`) i objekta sa `/admin/objekti` (ne poslednji; ne sa budućim terminima).
+  Neaktivan salon: sajt ugašen (nema prijave ni panela) dok se ne plati / ne objavi ponovo.
+  Zaposleni: deaktivacija ostavlja profil bez prijave; brisanje uklanja i nalog.
   `/admin/logovi` pregled `audit_log` za izabrani salon.
-  Izmene kroz `runAdminAction()`; salon uvek iz `sessions.active_organization_id`.
+  Izmene u salonu kroz `runAdminAction()`; salon uvek iz `sessions.active_organization_id`.
 - **Admin: cene** (korak 5, deo 2): `/admin/cene` katalog usluga i cena/trajanje/buffer po lokaciji.
 - **Admin: galerija** (korak 5, deo 3): `/admin/galerija` WebP na disku (`STORAGE_DIR`), kvota po salonu, `/api/media/:id`.
 - **Javni sajt** (korak 6, `docs/sajt.md`): pocetna, o nama, cenovnik, galerija, kontakt, zakazivanje;
-  schema.org HairSalon; gost unosi ime/telefon/email (`pending` + email link); ulogovani klijent
+  schema.org iz teme (HairSalon/DaySpa/NailSalon); gost: odmah confirmed ili pending ako salon trazi
+  potvrdu emailom; ulogovani klijent
   ima ime i telefon sa naloga i odmah `confirmed`; `/nalog` istorija + otkaz.
-  Seed mušterije (lozinka `musterija`): `musterija@localhost.rs`, `musterija@sajt2.rs`, `musterija@sajt3.rs`.
+  Kalendar na zakazivanju (`GET /api/availability/dates`) ne nudi prošle, zatvorene ni popunjene dane.
+  Seed mušterije (lozinka `musterija`): `musterija@ateljekosic.rs`, `musterija@zenmasaza.rs`, `musterija@bellanails.rs`.
+  Seed termini: po par potvrdjenih gost-termina za svakog zaposlenog (naredni radni dani).
 - **Deploy** (`docs/deploy.md`): Dockerfile standalone, `docker-compose.prod.yml`, Caddy, expire cron.
 - **Custom domeni** (`/admin/domeni`): `organization_domains` + Caddy `GET /api/tls-ask`; Better Auth `allowedHosts`
   se dopunjuje proverenim domenima. Politika privatnosti: `/privatnost`. Produkcijska uloga: `db/prod/app_role.sql`.
@@ -158,8 +171,8 @@ ID-evi su `bigint` identity (u pgAdmin-u 1, 2, 3), ne UUID.
 Poznate odluke i ogranicenja algoritma:
 - `appointments.ends_at` = pocetak + trajanje + buffer; sama usluga mora da stane u smenu, buffer ne mora.
 - Minimalno vreme unapred 30 min, horizont 90 dana (`load.ts`), kasnije podesavanje salona.
-- `pending` termini zauzimaju slot (kao i constraint u bazi) dok ih ne istekne `jobs:expire-pending`
-  ili sledece zakazivanje u tom salonu (rok 15 min).
+- Ako salon trazi potvrdu, gost-termin je `pending` 60 min; inace odmah `confirmed`.
+  `jobs:expire-pending` oslobadja istekle pending redove.
 - Email: Resend (`RESEND_API_KEY`); bez kljuca u razvoju ispis u konzolu. SMS nije uvezen.
 - Integracioni testovi su `*.dbtest.ts` (`npm run test:db`), jedinicni `*.test.ts` (`npm test`, bez baze).
 - Lokalni docker korisnik je superuser, pa RLS tu ne filtrira; za produkciju napraviti posebnu
@@ -189,13 +202,13 @@ npm run db:migrate                # primeni migracije
 npm run db:seed                   # saloni, sadrzaj, nalozi (docs/dev-nalozi.md)
 npm run hosts:dev                 # hosts fajl (PowerShell kao Administrator, jednom)
 npm run user:create '--' --platform-admin --email ti@primer.rs --name "Ime"   # tvoj admin nalog
-npm run dev                       # http://localhost.rs:3000, http://sajt2.rs:3000, http://sajt3.rs:3000
+npm run dev                       # http://ateljekosic.rs:3000, zenmasaza.rs, bellanails.rs
                                   # platforma: http://localhost:3000/admin
 npm test                          # jedinicni testovi (bez baze)
 npm run test:db                   # integracioni testovi (baza mora da radi)
 npm run typecheck
 ```
-`localhost.rs` / `sajt2.rs` / `sajt3.rs` zahtevaju `npm run hosts:dev`. `*.localhost` radi u browseru i bez toga.
+`ateljekosic.rs` / `zenmasaza.rs` / `bellanails.rs` zahtevaju `npm run hosts:dev`. `*.localhost` radi u browseru i bez toga.
 Provera: `http://localhost:3000/api/health`. Primer: vidi komentar na vrhu `db/seed/dev_seed.sql`.
 Reset baze: `docker compose down -v`, pa `up -d` i `npm run db:migrate`.
 

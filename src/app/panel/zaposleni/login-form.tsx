@@ -1,12 +1,16 @@
 'use client';
 
 import { startTransition, useActionState } from 'react';
-import { createLoginAction, type LoginFormState } from './actions';
-
 const inputClass = 'mt-1 block w-full rounded-md border border-neutral-300 px-3 py-2 text-base';
 
-export function LoginForm({ staffId }: { staffId: string }) {
-  const [state, formAction, pending] = useActionState<LoginFormState, FormData>(createLoginAction, null);
+type LoginFormState =
+  | { ok: true; data: { kind: 'created'; email: string; password: string } | { kind: 'linked'; email: string } }
+  | { ok: false; error: string }
+  | null;
+type LoginAction = (prev: LoginFormState, formData: FormData) => Promise<LoginFormState>;
+
+export function LoginForm({ staffId, action }: { staffId: string; action: LoginAction }) {
+  const [state, formAction, pending] = useActionState<LoginFormState, FormData>(action, null);
 
   if (state?.ok && state.data.kind === 'created') {
     return (

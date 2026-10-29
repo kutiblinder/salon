@@ -119,7 +119,9 @@ test('vlasnik zakazuje "bilo kome"; zaposleni vidi samo svoje termine', async ()
   assert.ok(ownerView.length >= 3);
   assert.ok(anaView.length >= 1);
   assert.ok(anaView.every((a) => a.staffId === ANA));
+  assert.equal(anaView[0].staffName, 'Ana');
   assert.equal(anaView[0].clientPhone, '+381641234567');
+  assert.ok(ownerView.some((a) => a.staffName === 'Bojan'));
 });
 
 test('promena statusa: dozvola nad terminom, dozvoljeni prelazi, audit', async () => {
@@ -153,7 +155,7 @@ test('promena statusa: dozvola nad terminom, dozvoljeni prelazi, audit', async (
   );
 });
 
-test('salon potvrdjuje gost-termin koji ceka potvrdu', async () => {
+test('gost-termin sa sajta je odmah potvrdjen', async () => {
   const guest = await withTenant(ORG, (client) =>
     createGuestAppointment(
       client,
@@ -163,8 +165,12 @@ test('salon potvrdjuje gost-termin koji ceka potvrdu', async () => {
     ),
   );
   assert.ok(guest.ok);
-  await asUser(ANA_USER, (client, ctx) => setAppointmentStatus(client, ctx, guest.appointment.id, 'confirmed', Date.now()));
-  const row = await getPool().query(`SELECT status, pending_expires_at FROM appointments WHERE id = $1`, [guest.appointment.id]);
+  assert.equal(guest.appointment.status, 'confirmed');
+  const row = await getPool().query(
+    `SELECT status, pending_expires_at, privacy_consent_at IS NOT NULL AS consent FROM appointments WHERE id = $1`,
+    [guest.appointment.id],
+  );
   assert.equal(row.rows[0].status, 'confirmed');
   assert.equal(row.rows[0].pending_expires_at, null);
+  assert.equal(row.rows[0].consent, true);
 });

@@ -118,9 +118,11 @@ test('skidanje lokacije brise ponudu; dodavanje na B upisuje cenu', async () => 
   assert.equal(leftover.rows[0].location_id, LOC_B);
   assert.equal(Number(leftover.rows[0].price), 1500);
   assert.equal(leftover.rows[0].duration_min, 35);
-  const audit = await getPool().query(`SELECT action FROM audit_log WHERE object_id = $1 AND action = 'prices.update'`, [
-    created.id,
-  ]);
+  const audit = await getPool().query(
+    `SELECT action FROM audit_log
+      WHERE organization_id = $1 AND object_id = $2 AND object_type = 'service' AND action = 'prices.update'`,
+    [ORG, created.id],
+  );
   assert.equal(audit.rowCount, 1);
 });
 

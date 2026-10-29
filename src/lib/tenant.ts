@@ -6,7 +6,7 @@ export interface Tenant {
   id: string;
   name: string;
   slug: string;
-  status: 'draft' | 'published';
+  status: 'draft' | 'published' | 'inactive';
   theme: Record<string, unknown>;
 }
 

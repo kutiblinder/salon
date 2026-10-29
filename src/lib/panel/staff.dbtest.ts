@@ -6,8 +6,9 @@ import assert from 'node:assert/strict';
 import { testId } from '../test-id';
 import type { PoolClient } from 'pg';
 import { getPool, withTenant } from '../db';
+import { loginDeniedReason } from '../auth/access';
 import { loadPanelContext, PanelError, type PanelContext, type SalonSession } from './core';
-import { createStaff, createStaffLogin, getStaff, updateStaff } from './staff';
+import { createStaff, createStaffLogin, deleteStaff, getStaff, updateStaff } from './staff';
 
 const ORG = testId();
 const LOC_A = testId();
@@ -187,4 +188,105 @@ test('nalog: novi email dobija lozinku; isti email u salonu se veze', async () =
     [clientUser],
   );
   assert.equal(membership.rowCount, 1);
+});
+
+test('briše profil i nalog za prijavu', async () => {
+  const created = await asUser(OWNER_USER, (client, ctx) =>
+    createStaff(client, ctx, {
+      name: 'Filip',
+      title: null,
+      bio: null,
+      sortOrder: 0,
+      locationIds: [LOC_A],
+      services: [],
+    }),
+  );
+  const login = await asUser(OWNER_USER, (client, ctx) =>
+    createStaffLogin(client, ctx, { staffId: created.id, email: 'filip@test.rs', password: 'lozinka-8-znakova' }),
+  );
+  assert.equal(login.kind, 'created');
+  const user = await getPool().query<{ id: string }>(`SELECT id FROM users WHERE email = 'filip@test.rs'`);
+  const sessionId = testId();
+  await getPool().query(
+    `INSERT INTO sessions (id, token, user_id, organization_id, expires_at)
+     VALUES ($1, $2, $3, $4, now() + interval '1 day')`,
+    [sessionId, `tok-${sessionId}`, user.rows[0].id, ORG],
+  );
+  await asUser(OWNER_USER, (client, ctx) => deleteStaff(client, ctx, created.id));
+  const gone = await getPool().query(`SELECT 1 FROM staff WHERE id = $1`, [created.id]);
+  assert.equal(gone.rowCount, 0);
+  const still = await getPool().query(`SELECT 1 FROM users WHERE id = $1`, [user.rows[0].id]);
+  assert.equal(still.rowCount, 0);
+  const sess = await getPool().query(`SELECT 1 FROM sessions WHERE id = $1`, [sessionId]);
+  assert.equal(sess.rowCount, 0);
+});
+
+test('deaktivacija ostavlja profil, gasi prijavu', async () => {
+  const created = await asUser(OWNER_USER, (client, ctx) =>
+    createStaff(client, ctx, {
+      name: 'Hana',
+      title: null,
+      bio: null,
+      sortOrder: 0,
+      locationIds: [LOC_A],
+      services: [],
+    }),
+  );
+  await asUser(OWNER_USER, (client, ctx) =>
+    createStaffLogin(client, ctx, { staffId: created.id, email: 'hana@test.rs', password: 'lozinka-8-znakova' }),
+  );
+  const user = await getPool().query<{ id: string }>(`SELECT id FROM users WHERE email = 'hana@test.rs'`);
+  const sessionId = testId();
+  await getPool().query(
+    `INSERT INTO sessions (id, token, user_id, organization_id, expires_at)
+     VALUES ($1, $2, $3, $4, now() + interval '1 day')`,
+    [sessionId, `tok-${sessionId}`, user.rows[0].id, ORG],
+  );
+  await asUser(OWNER_USER, (client, ctx) =>
+    updateStaff(client, ctx, {
+      staffId: created.id,
+      name: 'Hana',
+      title: null,
+      bio: null,
+      isActive: false,
+      sortOrder: 0,
+      locationIds: [LOC_A],
+      services: [],
+    }),
+  );
+  const profile = await getPool().query<{ is_active: boolean }>(`SELECT is_active FROM staff WHERE id = $1`, [
+    created.id,
+  ]);
+  assert.equal(profile.rows[0].is_active, false);
+  const still = await getPool().query(`SELECT 1 FROM users WHERE id = $1`, [user.rows[0].id]);
+  assert.equal(still.rowCount, 1);
+  const sess = await getPool().query(`SELECT 1 FROM sessions WHERE id = $1`, [sessionId]);
+  assert.equal(sess.rowCount, 0);
+  const denied = await withTenant(ORG, (client) =>
+    loginDeniedReason(client, { organizationId: ORG, userId: user.rows[0].id }),
+  );
+  assert.match(denied ?? '', /deaktiviran/);
+});
+
+test('ne briše zaposlenog sa budućim terminom', async () => {
+  const created = await asUser(OWNER_USER, (client, ctx) =>
+    createStaff(client, ctx, {
+      name: 'Goran',
+      title: null,
+      bio: null,
+      sortOrder: 0,
+      locationIds: [LOC_A],
+      services: [],
+    }),
+  );
+  await getPool().query(`
+    INSERT INTO appointments (
+      organization_id, location_id, staff_id, service_id, guest_name, guest_phone,
+      starts_at, ends_at, service_name_snapshot, price_snapshot, duration_snapshot_min, status
+    ) VALUES (
+      '${ORG}', '${LOC_A}', '${created.id}', '${SERVICE}', 'Gost', '060',
+      now() + interval '2 days', now() + interval '2 days 30 min', 'Šišanje', 1000, 30, 'confirmed'
+    );
+  `);
+  await assert.rejects(asUser(OWNER_USER, (client, ctx) => deleteStaff(client, ctx, created.id)), /zakazan/);
 });

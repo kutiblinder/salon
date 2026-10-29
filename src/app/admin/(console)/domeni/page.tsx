@@ -14,7 +14,7 @@ export default async function AdminDomainsPage() {
     <main>
       <h1 className="text-2xl font-semibold">Domeni</h1>
       <p className="mt-1 text-neutral-600">
-        Svaki salon otvara se na svom domenu (npr. localhost.rs, sajt2.rs). Poddomen{' '}
+        Svaki salon otvara se na svom domenu (npr. ateljekosic.rs). Poddomen{' '}
         <code className="rounded bg-neutral-100 px-1">{ctx.salon.slug}</code> i dalje radi. Lokalno:{' '}
         <code className="rounded bg-neutral-100 px-1">npm run hosts:dev</code>, zatim http://domen.rs:3000.
       </p>

@@ -6,15 +6,15 @@ import { expirePendingAppointments } from './expire';
 import { newManageToken } from './token';
 import type { GuestBookingInput } from './validate';
 
-/** Koliko dugo gost ima da potvrdi termin pre nego sto se slot oslobodi. */
-export const PENDING_TTL_MIN = 15;
+/** Rok da gost potvrdi emailom kad salon uključi guest_confirm_email. */
+export const PENDING_TTL_MIN = 60;
 
 export interface CreatedAppointment {
   id: string;
   status: 'pending' | 'confirmed';
   startsAt: string;
   endsAt: string;
-  /** null kad je termin odmah potvrdjen (uneo ga je salon) */
+  /** null kad je termin odmah potvrđen */
   pendingExpiresAt: string | null;
   timezone: string;
   service: { id: string; name: string; price: string; currency: string; durationMin: number };
@@ -27,7 +27,7 @@ export type CreateGuestAppointmentResult =
 
 const EXCLUSION_VIOLATION = '23P01';
 
-/** Ko unosi termin: gost (ceka potvrdu), salon (odmah potvrdjen) ili ulogovani klijent (odmah potvrdjen). */
+/** Ko unosi termin: gost sa sajta, salon (panel) ili ulogovani klijent. */
 export type BookingSource =
   | { kind: 'guest' }
   | { kind: 'staff'; createdByUserId: string }
@@ -71,8 +71,18 @@ export async function createAppointment(
   source: BookingSource,
 ): Promise<CreateGuestAppointmentResult> {
   const byStaff = source.kind === 'staff';
-  const immediate = source.kind === 'staff' || source.kind === 'client';
+  const isGuest = source.kind === 'guest';
   await expirePendingAppointments(client, organizationId);
+
+  let guestConfirm = false;
+  if (isGuest) {
+    const flag = await client.query<{ guest_confirm_email: boolean }>(
+      `SELECT guest_confirm_email FROM organizations WHERE id = $1`,
+      [organizationId],
+    );
+    guestConfirm = flag.rows[0]?.guest_confirm_email === true;
+  }
+  const immediate = !guestConfirm;
 
   const locRes = await client.query<{ timezone: string }>(
     `SELECT timezone FROM locations WHERE id = $1 AND organization_id = $2 AND is_active`,
@@ -138,7 +148,7 @@ export async function createAppointment(
                  CASE WHEN $18 THEN NULL ELSE now() + make_interval(mins => $13) END,
                  CASE WHEN $18 THEN now() END,
                  $14, $15,
-                 CASE WHEN $18 THEN NULL ELSE now() END, $16::bigint)
+                 CASE WHEN $19 THEN now() END, $16::bigint)
          RETURNING id, pending_expires_at`,
         [
           organizationId, input.locationId, staffId, input.serviceId,
@@ -149,6 +159,7 @@ export async function createAppointment(
           byStaff ? source.createdByUserId : null,
           source.kind === 'client' ? source.userId : null,
           immediate,
+          isGuest,
         ],
       );
       await client.query('RELEASE SAVEPOINT booking');

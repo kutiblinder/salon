@@ -8,7 +8,7 @@ import { testId } from '../test-id';
 import { getPool, withTenant } from '../db';
 import { addDays, localDateOf, zonedTimeToUtcMs } from '../availability/time';
 import { getAvailability } from '../availability/load';
-import { createClientAppointment, createGuestAppointment } from './create';
+import { PENDING_TTL_MIN, createClientAppointment, createGuestAppointment } from './create';
 import { expirePendingAppointments } from './expire';
 import { cancelByToken, confirmByToken, getAppointmentByToken } from './manage';
 import type { GuestBookingInput } from './validate';
@@ -85,7 +85,7 @@ test('upis termina: snapshot cene i naziva, kraj = trajanje radnika + buffer', a
   const start = at('09:00');
   const r = await book(start, BOJAN);
   assert.ok(r.ok);
-  assert.equal(r.appointment.status, 'pending');
+  assert.equal(r.appointment.status, 'confirmed');
   assert.equal(r.appointment.staff.id, BOJAN);
   assert.equal(r.appointment.service.durationMin, 60);
   assert.equal(r.appointment.endsAt, new Date(start + 70 * 60_000).toISOString());
@@ -94,7 +94,7 @@ test('upis termina: snapshot cene i naziva, kraj = trajanje radnika + buffer', a
     await getPool().query(
       `SELECT service_name_snapshot, price_snapshot::text AS price, duration_snapshot_min AS d,
               guest_phone, privacy_consent_at IS NOT NULL AS consent, manage_token_hash <> $2 AS hashed,
-              pending_expires_at > now() AS expires_later
+              pending_expires_at
          FROM appointments WHERE id = $1`,
       [r.appointment.id, r.token],
     )
@@ -106,7 +106,7 @@ test('upis termina: snapshot cene i naziva, kraj = trajanje radnika + buffer', a
     guest_phone: '+381641234567',
     consent: true,
     hashed: true,
-    expires_later: true,
+    pending_expires_at: null,
   });
 });
 
@@ -132,9 +132,10 @@ test('"bilo koji radnik": kad je prvi izabrani upravo zauzet, dodeljuje se drugi
   assert.equal(second.appointment.staff.id, BOJAN);
 });
 
-test('potvrda i otkazivanje tokenom; token ne vazi u drugom salonu', async () => {
+test('otkazivanje tokenom; token ne vazi u drugom salonu', async () => {
   const r = await book(at('15:00'), ANA);
   assert.ok(r.ok);
+  assert.equal(r.appointment.status, 'confirmed');
 
   assert.deepEqual(await withTenant(OTHER_ORG, (c) => confirmByToken(c, OTHER_ORG, r.token)), {
     ok: false,
@@ -142,11 +143,12 @@ test('potvrda i otkazivanje tokenom; token ne vazi u drugom salonu', async () =>
   });
   assert.equal(await withTenant(OTHER_ORG, (c) => getAppointmentByToken(c, OTHER_ORG, r.token)), null);
 
-  assert.deepEqual(await withTenant(ORG, (c) => confirmByToken(c, ORG, r.token)), { ok: true });
+  // Gost je već potvrđen; stari confirm endpoint ostaje za leftover pending
   assert.deepEqual(await withTenant(ORG, (c) => confirmByToken(c, ORG, r.token)), { ok: false, error: 'not_allowed' });
   const shown = await withTenant(ORG, (c) => getAppointmentByToken(c, ORG, r.token));
   assert.equal(shown?.status, 'confirmed');
   assert.equal(shown?.canCancel, true);
+  assert.equal(shown?.canConfirm, false);
 
   assert.deepEqual(await withTenant(ORG, (c) => cancelByToken(c, ORG, r.token)), { ok: true });
   assert.deepEqual(await withTenant(ORG, (c) => cancelByToken(c, ORG, r.token)), { ok: false, error: 'not_allowed' });
@@ -159,9 +161,12 @@ test('istekao pending termin se otkazuje i oslobadja slot', async () => {
   const start = at('16:00');
   const r = await book(start, ANA);
   assert.ok(r.ok);
-  await getPool().query(`UPDATE appointments SET pending_expires_at = now() - interval '1 second' WHERE id = $1`, [
-    r.appointment.id,
-  ]);
+  await getPool().query(
+    `UPDATE appointments
+        SET status = 'pending', confirmed_at = NULL, pending_expires_at = now() - interval '1 second'
+      WHERE id = $1`,
+    [r.appointment.id],
+  );
 
   assert.equal(await withTenant(ORG, (c) => expirePendingAppointments(c, ORG)), 1);
   const status = (await getPool().query('SELECT status FROM appointments WHERE id = $1', [r.appointment.id])).rows[0]
@@ -211,4 +216,20 @@ test('ulogovani klijent: termin je odmah potvrdjen i vezan za nalog', async () =
   assert.equal(row.client_user_id, CLIENT);
   assert.equal(row.status, 'confirmed');
   assert.equal(row.pending_expires_at, null);
+});
+
+test('kad salon trazi potvrdu, gost-termin je pending i istice za sat vremena', async () => {
+  await getPool().query(`UPDATE organizations SET guest_confirm_email = true WHERE id = $1`, [ORG]);
+  try {
+    const r = await book(at('12:00'), ANA);
+    assert.ok(r.ok);
+    assert.equal(r.appointment.status, 'pending');
+    assert.ok(r.appointment.pendingExpiresAt);
+    const exp = Date.parse(r.appointment.pendingExpiresAt);
+    assert.ok(exp > Date.now() + (PENDING_TTL_MIN - 5) * 60_000);
+    assert.ok(exp < Date.now() + (PENDING_TTL_MIN + 5) * 60_000);
+    assert.deepEqual(await withTenant(ORG, (c) => confirmByToken(c, ORG, r.token)), { ok: true });
+  } finally {
+    await getPool().query(`UPDATE organizations SET guest_confirm_email = false WHERE id = $1`, [ORG]);
+  }
 });

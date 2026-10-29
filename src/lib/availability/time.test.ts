@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { addDays, localDateOf, weekdayMonday0, zonedTimeToUtcMs } from './time';
+import { addDays, eachDateInclusive, localDateOf, weekdayMonday0, zonedTimeToUtcMs } from './time';
 
 const TZ = 'Europe/Belgrade';
 const iso = (ms: number) => new Date(ms).toISOString();
@@ -35,6 +35,12 @@ test('addDays prelazi granice meseca i godine', () => {
   assert.equal(addDays('2026-10-31', 1), '2026-11-01');
   assert.equal(addDays('2026-12-31', 1), '2027-01-01');
   assert.equal(addDays('2026-03-01', -1), '2026-02-28');
+});
+
+test('eachDateInclusive obuhvata oba kraja', () => {
+  assert.deepEqual(eachDateInclusive('2026-10-30', '2026-11-01'), ['2026-10-30', '2026-10-31', '2026-11-01']);
+  assert.deepEqual(eachDateInclusive('2026-10-30', '2026-10-29'), []);
+  assert.deepEqual(eachDateInclusive('2026-10-30', '2026-10-30'), ['2026-10-30']);
 });
 
 test('localDateOf: lokalni datum u zoni', () => {

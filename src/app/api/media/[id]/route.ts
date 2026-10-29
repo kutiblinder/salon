@@ -24,7 +24,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
   const host = request.headers.get('host');
   const tenant = await resolveTenantByHost(host);
   const session = await getCurrentSession(request.headers);
-  const fromSalon = tenant?.id === media.organization_id;
+  const fromSalon = tenant?.id === media.organization_id && tenant.status !== 'inactive';
   const fromAdmin =
     session?.realm.kind === 'platform' && session.activeOrganizationId === media.organization_id;
   if (!fromSalon && !fromAdmin) return new Response(null, { status: 404 });

@@ -1,6 +1,10 @@
 import { getPool } from '@/lib/db';
 import { requireAdmin } from '@/lib/admin/context';
+import { publishStatusLabel } from '@/lib/admin/content';
 import { EnterOrganizationButton } from '../../_auth/auth-forms';
+import { ConfirmDelete } from './confirm-delete';
+import { deleteSalonAction } from './actions';
+import { NewSalonForm } from './new-salon-form';
 
 export const metadata = { title: 'Admin', robots: { index: false, follow: false } };
 
@@ -17,7 +21,14 @@ export default async function AdminPage() {
   return (
     <main>
       <h1 className="text-2xl font-semibold">Saloni</h1>
-      <p className="mt-1 text-neutral-600">Uđite u salon da uredite sadržaj. Saloni vas ne vide kao korisnika.</p>
+      <p className="mt-1 text-neutral-600">
+        Uđite u salon da uredite sadržaj i naloge. Saloni vas ne vide kao korisnika.
+      </p>
+
+      <section className="mt-6 rounded-lg border border-neutral-200 bg-white p-4">
+        <h2 className="font-medium">Novi salon</h2>
+        <NewSalonForm />
+      </section>
 
       <section className="mt-6 rounded-lg border border-neutral-200 bg-white p-4">
         <h2 className="font-medium">Trenutno radite u salonu</h2>
@@ -40,14 +51,23 @@ export default async function AdminPage() {
         ) : (
           <ul className="mt-2 divide-y divide-neutral-200 rounded-lg border border-neutral-200 bg-white">
             {orgs.map((o) => (
-              <li key={o.id} className="flex items-center justify-between gap-4 p-3">
+              <li key={o.id} className="flex flex-wrap items-center justify-between gap-3 p-3">
                 <span>
                   {o.name}{' '}
                   <span className="text-sm text-neutral-500">
-                    {o.slug} · {o.status === 'published' ? 'objavljen' : 'nacrt'}
+                    {o.slug} · {publishStatusLabel(o.status)}
                   </span>
                 </span>
-                {o.id !== active?.id && <EnterOrganizationButton organizationId={o.id} label="Uđi" />}
+                <span className="flex flex-wrap items-center gap-2">
+                  {o.id !== active?.id && <EnterOrganizationButton organizationId={o.id} label="Uđi" />}
+                  <ConfirmDelete
+                    action={deleteSalonAction}
+                    label="Obriši"
+                    message={`Obrisati salon „${o.name}“? Brišu se termini, nalozi i slike. Ovo se ne može vratiti.`}
+                  >
+                    <input type="hidden" name="organizationId" value={o.id} />
+                  </ConfirmDelete>
+                </span>
               </li>
             ))}
           </ul>

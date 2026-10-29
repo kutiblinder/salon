@@ -4,6 +4,7 @@ import { kyselyAdapter } from '@better-auth/kysely-adapter';
 import { Kysely, PostgresDialect } from 'kysely';
 import { normalizePhone } from '../appointments/validate';
 import { getPool } from '../db';
+import { loginDeniedReason } from './access';
 import { realmScopedAdapter } from './adapter';
 import { invalidateAuthCache } from './cache';
 import { currentRealm } from './realm';
@@ -101,9 +102,29 @@ function createAuth() {
     },
     hooks: {
       before: createAuthMiddleware(async (ctx) => {
+        const realm = currentRealm();
+        if (realm.kind === 'salon' && realm.tenant.status === 'inactive') {
+          // get-session sme da prođe; getCurrentSession i HTTP rute tretiraju nalog kao odjavljen.
+          const path = ctx.path ?? '';
+          if (path.startsWith('/sign-in') || path.startsWith('/sign-up') || path === '/sign-out') {
+            throw new APIError('NOT_FOUND', { message: 'Sajt nije dostupan.' });
+          }
+        }
+        if (ctx.path === '/sign-in/email' && realm.kind === 'salon') {
+          const email = (ctx.body as { email?: unknown } | undefined)?.email;
+          if (typeof email === 'string') {
+            const client = await getPool().connect();
+            try {
+              const denied = await loginDeniedReason(client, { organizationId: realm.organizationId, email });
+              if (denied) throw new APIError('FORBIDDEN', { message: denied });
+            } finally {
+              client.release();
+            }
+          }
+        }
         if (ctx.path !== '/sign-up/email') return;
         // Na domenu platforme nema javne registracije (nalog admina pravi skripta)
-        if (currentRealm().kind === 'platform') {
+        if (realm.kind === 'platform') {
           throw new APIError('FORBIDDEN', { message: 'Registracija nije dozvoljena na ovom domenu.' });
         }
         const body = (ctx.body ?? {}) as { privacyConsent?: unknown; phone?: unknown };
@@ -121,6 +142,24 @@ function createAuth() {
           before: async (user) => ({ data: { ...user, privacyConsentAt: new Date() } }),
         },
       },
+      session: {
+        create: {
+          before: async (session) => {
+            const realm = currentRealm();
+            if (realm.kind !== 'salon') return;
+            const client = await getPool().connect();
+            try {
+              const denied = await loginDeniedReason(client, {
+                organizationId: realm.organizationId,
+                userId: String(session.userId),
+              });
+              if (denied) throw new APIError('FORBIDDEN', { message: denied });
+            } finally {
+              client.release();
+            }
+          },
+        },
+      },
     },
   });
 }
@@ -136,3 +175,5 @@ function authAllowedHosts(): string[] {
 export function getAuth() {
   return (globalThis.__salonAuth ??= createAuth());
 }
+
+globalThis.__salonAuth = undefined;

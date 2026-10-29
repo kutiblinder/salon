@@ -25,7 +25,7 @@ export default async function GalleryPage() {
               <img
                 src={`/api/media/${item.mediaId}`}
                 alt={item.altText ?? ''}
-                className="w-full rounded-lg object-cover"
+                className="aspect-[4/3] w-full rounded-lg object-cover"
               />
               {item.caption && <p className="mt-2 text-sm text-neutral-600">{item.caption}</p>}
             </li>

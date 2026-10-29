@@ -74,7 +74,10 @@ test('vlasnik unosi godisnji; interval je [ponoc, ponoc), uz audit', async () =>
   assert.equal(row.rows[0].note, 'more');
   assert.equal(row.rows[0].s.toISOString(), new Date(range.startMs).toISOString());
   assert.equal(row.rows[0].e.toISOString(), new Date(range.endMs).toISOString());
-  const audit = await getPool().query(`SELECT action FROM audit_log WHERE object_id = $1`, [created.id]);
+  const audit = await getPool().query(
+    `SELECT action FROM audit_log WHERE object_id = $1 AND object_type = 'time_off'`,
+    [created.id],
+  );
   assert.deepEqual(audit.rows.map((r) => r.action), ['schedule.time_off.create']);
 });
 
@@ -115,7 +118,7 @@ test('zaposleni ne moze da obrise tudje; vlasnik brise uz audit', async () => {
   const gone = await getPool().query(`SELECT 1 FROM time_off WHERE id = $1`, [created.id]);
   assert.equal(gone.rowCount, 0);
   const audit = await getPool().query(
-    `SELECT action FROM audit_log WHERE object_id = $1 ORDER BY id`,
+    `SELECT action FROM audit_log WHERE object_id = $1 AND object_type = 'time_off' ORDER BY id`,
     [created.id],
   );
   assert.deepEqual(

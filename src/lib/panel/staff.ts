@@ -2,11 +2,22 @@ import { randomBytes } from 'node:crypto';
 import { hashPassword } from 'better-auth/crypto';
 import type { PoolClient } from 'pg';
 import { writeAudit } from '../audit';
-import { PanelError, type PanelContext } from './core';
+import { dropUserSessions, removeStaffLogin } from '../staff-account';
+import { PanelError } from './core';
 import { isUuid } from './schedule';
+import type { Permission } from '../auth/permissions';
 import type { CreateLoginResult, OrgService, StaffDetail, StaffListItem, StaffServiceAssignment } from './staff-types';
 
 export type { CreateLoginResult, OrgService, StaffDetail, StaffListItem, StaffServiceAssignment } from './staff-types';
+
+/** Panel i admin dele iste upise; dozvole proverava pozivalac kroz require / locationsFor. */
+export interface StaffAccess {
+  organizationId: string;
+  actor: { userId: string };
+  locations: { id: string }[];
+  require(permission: Permission, resource?: { locationId?: string; staffId?: string }): void;
+  locationsFor(permission: Permission): { id: string }[];
+}
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const UNIQUE_VIOLATION = '23505';
@@ -58,7 +69,41 @@ export function parseSortOrder(raw: unknown): number | null {
   return n;
 }
 
-function requireManage(ctx: PanelContext, locationIds: string[] = []) {
+export type ParsedStaffProfile =
+  | { error: string }
+  | {
+      name: string;
+      title: string | null;
+      bio: string | null;
+      sortOrder: number;
+      locationIds: string[];
+      services: StaffServiceAssignment[];
+    };
+
+export function parseStaffProfileForm(formData: FormData): ParsedStaffProfile {
+  const name = parseStaffName(formData.get('name'));
+  const title = parseOptionalText(formData.get('title'), 80);
+  const bio = parseOptionalText(formData.get('bio'), 500);
+  const sortOrder = parseSortOrder(formData.get('sortOrder'));
+  const locationIds = parseIdList(formData.getAll('locationId'));
+  const serviceIds = parseIdList(formData.getAll('serviceId'));
+  if (!name) return { error: 'Unesite ime (do 80 karaktera).' };
+  if (title === undefined) return { error: 'Titula je predugačka.' };
+  if (bio === undefined) return { error: 'Opis je predugačak.' };
+  if (sortOrder === null) return { error: 'Redosled mora biti nula ili pozitivan broj.' };
+  if (!locationIds) return { error: 'Neispravan objekat.' };
+  if (locationIds.length === 0) return { error: 'Izaberite bar jedan objekat.' };
+  if (!serviceIds) return { error: 'Neispravna usluga.' };
+  const services: StaffServiceAssignment[] = [];
+  for (const serviceId of serviceIds) {
+    const duration = parseDurationOverride(formData.get(`duration_${serviceId}`));
+    if (duration === undefined) return { error: 'Trajanje usluge mora biti ceo broj minuta, ili prazno.' };
+    services.push({ serviceId, durationOverrideMin: duration });
+  }
+  return { name, title, bio, sortOrder, locationIds, services };
+}
+
+function requireManage(ctx: StaffAccess, locationIds: string[] = []) {
   if (locationIds.length === 0) {
     if (ctx.locationsFor('staff.manage').length === 0) {
       throw new PanelError('Nemate dozvolu za ovu radnju.');
@@ -70,7 +115,7 @@ function requireManage(ctx: PanelContext, locationIds: string[] = []) {
   }
 }
 
-function assertOrgLocations(ctx: PanelContext, locationIds: string[]) {
+function assertOrgLocations(ctx: StaffAccess, locationIds: string[]) {
   const allowed = new Set(ctx.locations.map((l) => l.id));
   if (locationIds.some((id) => !allowed.has(id))) throw new PanelError('Lokacija ne postoji.');
 }
@@ -91,7 +136,7 @@ export async function loadOrgServices(client: PoolClient, organizationId: string
   return res.rows;
 }
 
-export async function listStaff(client: PoolClient, ctx: PanelContext): Promise<StaffListItem[]> {
+export async function listStaff(client: PoolClient, ctx: StaffAccess): Promise<StaffListItem[]> {
   requireManage(ctx);
   const res = await client.query<{
     id: string;
@@ -123,7 +168,7 @@ export async function listStaff(client: PoolClient, ctx: PanelContext): Promise<
   }));
 }
 
-export async function getStaff(client: PoolClient, ctx: PanelContext, staffId: string): Promise<StaffDetail | null> {
+export async function getStaff(client: PoolClient, ctx: StaffAccess, staffId: string): Promise<StaffDetail | null> {
   requireManage(ctx);
   const res = await client.query<{
     id: string;
@@ -213,7 +258,7 @@ async function assertOrgServices(client: PoolClient, organizationId: string, ser
 
 export async function createStaff(
   client: PoolClient,
-  ctx: PanelContext,
+  ctx: StaffAccess,
   input: {
     name: string;
     title: string | null;
@@ -249,7 +294,7 @@ export async function createStaff(
 
 export async function updateStaff(
   client: PoolClient,
-  ctx: PanelContext,
+  ctx: StaffAccess,
   input: {
     staffId: string;
     name: string;
@@ -267,14 +312,24 @@ export async function updateStaff(
   assertOrgLocations(ctx, input.locationIds);
   await assertOrgServices(client, ctx.organizationId, input.services.map((s) => s.serviceId));
 
-  const prev = await client.query<{ display_name: string; is_active: boolean }>(
-    `SELECT display_name, is_active FROM staff WHERE id = $1`,
+  const prev = await client.query<{ display_name: string; is_active: boolean; user_id: string | null }>(
+    `SELECT display_name, is_active, user_id FROM staff WHERE id = $1`,
     [input.staffId],
   );
   await client.query(
     `UPDATE staff SET display_name = $2, title = $3, bio = $4, is_active = $5, sort_order = $6 WHERE id = $1`,
     [input.staffId, input.name, input.title, input.bio, input.isActive, input.sortOrder],
   );
+  if (prev.rows[0]?.user_id) {
+    await client.query(`UPDATE users SET full_name = $2 WHERE id = $1 AND organization_id = $3`, [
+      prev.rows[0].user_id,
+      input.name,
+      ctx.organizationId,
+    ]);
+  }
+  if (!input.isActive && prev.rows[0]?.is_active && prev.rows[0].user_id) {
+    await dropUserSessions(client, prev.rows[0].user_id);
+  }
   await replaceLocations(client, input.staffId, input.locationIds);
   await replaceServices(client, input.staffId, input.services);
   await writeAudit(client, {
@@ -299,7 +354,7 @@ export async function updateStaff(
  */
 export async function createStaffLogin(
   client: PoolClient,
-  ctx: PanelContext,
+  ctx: StaffAccess,
   input: { staffId: string; email: string; password: string | null },
 ): Promise<CreateLoginResult> {
   const staff = await client.query<{ user_id: string | null; display_name: string; location_id: string | null }>(
@@ -370,4 +425,47 @@ export async function createStaffLogin(
     newValue: { email: input.email, linkedExisting: generated === null },
   });
   return generated ? { kind: 'created', email: input.email, password: generated } : { kind: 'linked', email: input.email };
+}
+
+export async function deleteStaff(client: PoolClient, ctx: StaffAccess, staffId: string): Promise<void> {
+  await loadOwnedStaff(client, ctx.organizationId, staffId);
+  const loc = await client.query<{ location_id: string }>(
+    `SELECT location_id FROM staff_locations WHERE staff_id = $1`,
+    [staffId],
+  );
+  requireManage(
+    ctx,
+    loc.rows.map((r) => r.location_id),
+  );
+
+  const future = await client.query<{ n: number }>(
+    `SELECT count(*)::int AS n FROM appointments
+      WHERE staff_id = $1 AND organization_id = $2
+        AND status IN ('pending', 'confirmed') AND starts_at > now()`,
+    [staffId, ctx.organizationId],
+  );
+  if (future.rows[0].n > 0) {
+    throw new PanelError('Zaposleni ima zakazane termine. Otkažite ih pa obrišite profil.');
+  }
+
+  const prev = await client.query<{ display_name: string; user_id: string | null }>(
+    `SELECT display_name, user_id FROM staff WHERE id = $1 AND organization_id = $2`,
+    [staffId, ctx.organizationId],
+  );
+  await client.query(`DELETE FROM appointments WHERE staff_id = $1 AND organization_id = $2`, [
+    staffId,
+    ctx.organizationId,
+  ]);
+  await client.query(`DELETE FROM staff WHERE id = $1 AND organization_id = $2`, [staffId, ctx.organizationId]);
+  if (prev.rows[0]?.user_id) {
+    await removeStaffLogin(client, ctx.organizationId, prev.rows[0].user_id);
+  }
+  await writeAudit(client, {
+    organizationId: ctx.organizationId,
+    userId: ctx.actor.userId,
+    action: 'staff.delete',
+    objectType: 'staff',
+    objectId: staffId,
+    oldValue: { name: prev.rows[0]?.display_name },
+  });
 }

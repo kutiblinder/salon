@@ -13,8 +13,10 @@ export async function saveContentAction(_prev: FormState, formData: FormData): P
   }
   const parsed = parseContentForm({
     name: formData.get('name'),
+    slug: formData.get('slug'),
     status: formData.get('status'),
     primaryColor: formData.get('primaryColor'),
+    guestConfirmEmail: formData.get('guestConfirmEmail'),
     values,
   });
   if ('error' in parsed) return { ok: false, error: parsed.error };

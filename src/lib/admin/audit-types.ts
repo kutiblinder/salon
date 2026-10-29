@@ -15,6 +15,8 @@ export interface AuditLogItem {
 export const ACTION_LABELS: Record<string, string> = {
   'admin.enter_organization': 'Ulazak u salon',
   'admin.leave_organization': 'Izlazak iz salona',
+  'organization.create': 'Novi salon',
+  'organization.delete': 'Obrisan salon',
   'appointment.create': 'Novi termin',
   'appointment.status': 'Promena statusa termina',
   'content.update': 'Izmena sadržaja',
@@ -23,6 +25,9 @@ export const ACTION_LABELS: Record<string, string> = {
   'domains.unverify': 'Domen nije više proveren',
   'domains.verify': 'Domen proveren',
   'gallery.create': 'Dodata slika',
+  'locations.create': 'Novi objekat',
+  'locations.update': 'Izmena objekta',
+  'locations.delete': 'Obrisan objekat',
   'gallery.delete': 'Obrisana slika',
   'gallery.update': 'Izmena slike',
   'prices.update': 'Izmena cena',
@@ -38,6 +43,7 @@ export const ACTION_LABELS: Record<string, string> = {
   'staff.create': 'Novi zaposleni',
   'staff.login.create': 'Nalog zaposlenog',
   'staff.update': 'Izmena zaposlenog',
+  'staff.delete': 'Obrisan zaposleni',
   'user.create': 'Novi nalog',
 };
 
@@ -45,6 +51,7 @@ export const OBJECT_TYPE_LABELS: Record<string, string> = {
   appointment: 'termin',
   domain: 'domen',
   gallery_item: 'slika',
+  location: 'objekat',
   membership: 'članstvo',
   organization: 'salon',
   schedule_exception: 'izuzetak smene',
@@ -52,5 +59,6 @@ export const OBJECT_TYPE_LABELS: Record<string, string> = {
   shift_template: 'šablon smene',
   staff: 'zaposleni',
   time_off: 'odsustvo',
+  user: 'nalog',
   weekly_schedule: 'raspored',
 };

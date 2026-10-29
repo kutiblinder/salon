@@ -38,7 +38,12 @@ export function ContentForm({ salon, values }: { salon: SalonSettings; values: R
           <select name="status" defaultValue={salon.status} className={inputClass}>
             <option value="draft">Nacrt (nije javan)</option>
             <option value="published">Objavljen</option>
+            <option value="inactive">Neaktivan (sajt ugašen)</option>
           </select>
+          <p className="mt-1 text-sm font-normal text-neutral-600">
+            Nacrt: sajt se vidi, zakazivanje je ugašeno. Neaktivan: sajt je ugašen (nema prijave ni
+            panela), dok ga ponovo ne objavite.
+          </p>
         </label>
         <label className="block text-sm font-medium">
           Primarna boja
@@ -68,9 +73,37 @@ export function ContentForm({ salon, values }: { salon: SalonSettings; values: R
             {preview.weak ? ' · beli tekst ima slab kontrast, koristiće se crni' : ''}
           </p>
         )}
-        <p className="text-sm text-neutral-600">
-          Poddomen: {salon.slug}. Custom domen i galerija su u meniju admina.
-        </p>
+        <label className="block text-sm font-medium">
+          Poddomen
+          <input
+            name="slug"
+            defaultValue={salon.slug}
+            className={`${inputClass} font-mono`}
+            maxLength={50}
+            required
+            pattern="[a-z0-9]([a-z0-9-]*[a-z0-9])?"
+            title="Mala slova, brojevi i crtica"
+          />
+          <span className="mt-1 block font-normal text-neutral-600">
+            Adresa sajta: {salon.slug}.localhost (lokalno) ili slug.tvojsajt.rs. Custom domen je u meniju Domeni.
+          </span>
+        </label>
+        <label className="flex items-start gap-3 text-sm font-medium">
+          <input
+            type="checkbox"
+            name="guestConfirmEmail"
+            value="1"
+            defaultChecked={salon.guestConfirmEmail}
+            className="mt-1 size-4"
+          />
+          <span>
+            Gost mora da potvrdi termin linkom iz emaila
+            <span className="mt-1 block font-normal text-neutral-600">
+              Ako ne potvrdi u roku od sat vremena, termin se oslobađa. Isključeno: termin je odmah
+              potvrđen, ostaje samo otkazivanje.
+            </span>
+          </span>
+        </label>
       </section>
 
       <section className="space-y-4 rounded-lg border border-neutral-200 bg-white p-4">

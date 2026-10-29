@@ -2,6 +2,7 @@ import type { PoolClient } from 'pg';
 import { loadActor, loadPermissionRules } from '../auth/actor';
 import { can, type Actor, type Permission, type PermissionRules, type Resource } from '../auth/permissions';
 import type { CurrentSession } from '../auth/session';
+import { UserFacingError } from '../user-error';
 
 export interface PanelLocation {
   id: string;
@@ -23,11 +24,11 @@ export interface PanelContext {
   /** Lokacije na kojima nalog ima dozvolu bar za svoje objekte */
   locationsFor(permission: Permission): PanelLocation[];
   /** Baca PanelError ako dozvola ne postoji. Resource ucitaj iz baze, ne iz zahteva. */
-  require(permission: Permission, resource: Omit<Resource, 'organizationId'>): void;
+  require(permission: Permission, resource?: Omit<Resource, 'organizationId'>): void;
 }
 
 /** Greska sa porukom za korisnika; prekida transakciju akcije. */
-export class PanelError extends Error {}
+export class PanelError extends UserFacingError {}
 
 export type ActionResult<T = undefined> = { ok: true; data: T } | { ok: false; error: string };
 
@@ -61,7 +62,7 @@ export async function loadPanelContext(client: PoolClient, session: SalonSession
       locations.filter((l) =>
         [null, ...actor.staffIds].some((staffId) => check(permission, { locationId: l.id, staffId })),
       ),
-    require(permission, resource) {
+    require(permission, resource = {}) {
       if (!check(permission, resource)) throw new PanelError('Nemate dozvolu za ovu radnju.');
     },
   };
