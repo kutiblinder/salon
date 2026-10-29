@@ -101,20 +101,24 @@ Otvori:
 
 - http://demo.localhost:3000 — sajt probnog salona (`*.localhost` radi u Chrome/Edge/Firefox)
 - http://localhost:3000/api/health — treba `{"status":"ok","db":"up"}`
-- Slobodni termini (ponedeljak, Fade šišanje, bilo koji radnik):
-  http://demo.localhost:3000/api/availability?locationId=22222222-2222-4222-8222-222222222222&serviceId=33333333-3333-4333-8333-333333333331&date=2026-10-12
+- Slobodni termini (Fade šišanje, bilo koji radnik; zameni datum budućim radnim danom):
+  http://demo.localhost:3000/api/availability?locationId=22222222-2222-4222-8222-222222222222&serviceId=33333333-3333-4333-8333-333333333331&date=2026-11-02
 
-Ako je datum u prošlosti, lista termina je prazna: izaberi budući datum (ponedeljak–petak ima termine, nedelja nema).
+Ako je datum u prošlosti ili dalje od 90 dana, lista termina je prazna (ponedeljak–subota ima termine, nedelja nema).
+
+Zakazivanje gosta i link za potvrdu/otkazivanje: vidi [`docs/zakazivanje.md`](docs/zakazivanje.md).
 
 ## Komande
 
 | Komanda | Šta radi |
 |---|---|
 | `npm run dev` | razvojni server |
-| `npm test` | jedinični testovi (algoritam termina, prepoznavanje salona), ne traže bazu |
+| `npm test` | jedinični testovi (algoritam termina, prepoznavanje salona, validacija), ne traže bazu |
+| `npm run test:db` | integracioni testovi zakazivanja nad bazom (pravi i briše svoje probne salone) |
 | `npm run typecheck` | provera TypeScript tipova |
 | `npm run db:migrate` | primeni nove SQL migracije iz `db/migrations` |
 | `npm run db:seed` | ubaci probne podatke (`db/seed/dev_seed.sql`) |
+| `npm run jobs:expire-pending` | otkaži nepotvrđene gost-termine kojima je istekao rok (u produkciji cron) |
 | `docker compose stop` | zaustavi bazu (podaci ostaju) |
 | `docker compose down -v` | obriši bazu i podatke (čist početak), posle toga ponovo `up -d` i `db:migrate` |
 
@@ -125,13 +129,15 @@ Ako je datum u prošlosti, lista termina je prazna: izaberi budući datum (poned
 ```
 salon/
 ├── db/
-│   ├── migrations/001_init.sql     šema baze
+│   ├── migrations/                 šema baze (001_init.sql, 002_...)
 │   └── seed/dev_seed.sql           probni podaci
-├── scripts/                        migrate.ts, run-sql.ts
+├── scripts/                        migrate.ts, run-sql.ts, expire-pending.ts
 ├── src/
 │   ├── app/                        Next.js stranice i API rute
 │   └── lib/
 │       ├── availability/           algoritam slobodnih termina (+ testovi)
+│       ├── appointments/           zakazivanje, potvrda/otkazivanje tokenom, istek
+│       ├── notify.ts               obaveštenja (za sada samo log u razvoju)
 │       ├── db.ts                   konekcija na PostgreSQL, withTenant()
 │       ├── tenant.ts, tenant-key.ts   prepoznavanje salona iz domena
 ├── docs/

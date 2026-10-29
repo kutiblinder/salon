@@ -1,5 +1,5 @@
 import type { PoolClient } from 'pg';
-import { addDays, weekdayMonday0, zonedTimeToUtcMs } from './time';
+import { addDays, localDateOf, weekdayMonday0, zonedTimeToUtcMs } from './time';
 import { resolveShift, type ExceptionEntry, type WeeklyEntry } from './schedule';
 import { computeSlots, mergeStaffSlots, type Interval } from './slots';
 
@@ -7,6 +7,12 @@ import { computeSlots, mergeStaffSlots, type Interval } from './slots';
 export const MIN_NOTICE_MIN = 30;
 /** Koliko dana unapred se moze zakazati. */
 export const MAX_DAYS_AHEAD = 90;
+
+/** Da li je lokalni datum lokacije u dozvoljenom prozoru (danas ... danas + MAX_DAYS_AHEAD). */
+export function isBookableDate(date: string, nowMs: number, timezone: string): boolean {
+  const today = localDateOf(nowMs, timezone);
+  return date >= today && date <= addDays(today, MAX_DAYS_AHEAD);
+}
 
 export interface AvailabilityQuery {
   organizationId: string;

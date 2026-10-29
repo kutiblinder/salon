@@ -1,7 +1,6 @@
 import { withTenant } from '@/lib/db';
 import { resolveTenantByHost } from '@/lib/tenant';
-import { MAX_DAYS_AHEAD, getAvailability } from '@/lib/availability/load';
-import { addDays, localDateOf } from '@/lib/availability/time';
+import { getAvailability, isBookableDate } from '@/lib/availability/load';
 
 export const dynamic = 'force-dynamic';
 
@@ -45,8 +44,7 @@ export async function GET(request: Request) {
   if (!result) return Response.json({ error: 'not_found' }, { status: 404 });
 
   // Datum u proslosti ili predaleko unapred: prazna lista (bez greske)
-  const today = localDateOf(nowMs, result.timezone);
-  if (date < today || date > addDays(today, MAX_DAYS_AHEAD)) {
+  if (!isBookableDate(date, nowMs, result.timezone)) {
     return Response.json({ ...result, slots: [] });
   }
   return Response.json(result);

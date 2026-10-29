@@ -11,8 +11,10 @@
     "start": "next start",
     "typecheck": "tsc --noEmit",
     "test": "tsx --test \"src/**/*.test.ts\"",
+    "test:db": "node --env-file=.env --import tsx --test --test-concurrency=1 \"src/**/*.dbtest.ts\"",
     "db:migrate": "node --env-file=.env --import tsx scripts/migrate.ts",
-    "db:seed": "node --env-file=.env --import tsx scripts/run-sql.ts db/seed/dev_seed.sql"
+    "db:seed": "node --env-file=.env --import tsx scripts/run-sql.ts db/seed/dev_seed.sql",
+    "jobs:expire-pending": "node --env-file=.env --import tsx scripts/expire-pending.ts"
   },
   "dependencies": {
     "next": "^16.0.0",

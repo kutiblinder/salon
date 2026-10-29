@@ -95,33 +95,37 @@ Pazi na kontrast boje teksta na primarnoj boji salona.
 
 ## Trenutno stanje (azurirati posle svakog vecog koraka)
 
-Gotovo i **provereno** (33 jedinicna testa prolaze, `npm test`):
+Gotovo i **provereno** na pravoj bazi (Postgres 16 u Dockeru, Next 16.4, `package-lock.json` u repou).
+`npm test`: 41 jedinicni test; `npm run test:db`: 6 integracionih testova; typecheck i `next build` prolaze;
+migracije prolaze na praznoj bazi.
 - `src/lib/availability/`: `time.ts` (zone, DST, datumi), `schedule.ts` (`resolveShift`),
-  `slots.ts` (`computeSlots`, `mergeStaffSlots`, `pickStaff`). Cista logika, bez baze.
-- `src/lib/tenant-key.ts`: Host -> slug / custom domen / platforma.
-
-Napisano, ali **jos NIJE pokrenuto na pravoj bazi ni sa `npm install`** (prvi zadatak: pokreni,
-ispravi greske, dopuni testove):
-- Next.js kostur (`src/app`, `package.json`, `tsconfig.json`, Tailwind 4), `src/lib/db.ts`,
-  `src/lib/tenant.ts`, `src/lib/availability/load.ts` (SQL upiti), `GET /api/availability`,
-  `GET /api/health`, `scripts/migrate.ts`, `scripts/run-sql.ts`, `db/seed/dev_seed.sql`.
-- Verzije u `package.json` su opsezi (Next ^16, React ^19, Tailwind ^4); posle `npm install`
-  commit-uj `package-lock.json`.
+  `slots.ts` (`computeSlots`, `mergeStaffSlots`, `pickStaff`), `load.ts` (SQL upiti, `isBookableDate`).
+- `src/lib/tenant-key.ts`, `src/lib/tenant.ts`: Host -> slug / custom domen / platforma.
+- `src/lib/db.ts` (`withTenant()`), `scripts/migrate.ts`, `scripts/run-sql.ts`, `db/seed/dev_seed.sql`.
+- `GET /api/health`, `GET /api/availability`.
+- **Zakazivanje gosta** (korak 3, odluke u `docs/zakazivanje.md`): `POST /api/appointments`,
+  `POST /api/appointments/confirm|cancel` (token iz linka), stranica `/termin/[token]`,
+  `npm run jobs:expire-pending`, migracija `002_appointment_booking.sql`. Kod u `src/lib/appointments/`.
+  Trka dva zahteva za isti termin je pokrivena testom (`booking.dbtest.ts`): `23P01` -> `slot_taken`,
+  a kod "bilo koji radnik" prelazi na sledeceg slobodnog.
 
 Poznate odluke i ogranicenja algoritma:
 - `appointments.ends_at` = pocetak + trajanje + buffer; sama usluga mora da stane u smenu, buffer ne mora.
 - Minimalno vreme unapred 30 min, horizont 90 dana (`load.ts`), kasnije podesavanje salona.
-- `pending` termini zauzimaju slot (kao i constraint u bazi): treba posao za istek `pending_expires_at`.
+- `pending` termini zauzimaju slot (kao i constraint u bazi) dok ih ne istekne `jobs:expire-pending`
+  ili sledece zakazivanje u tom salonu (rok 15 min).
+- Email jos ne ide: `src/lib/notify.ts` u razvoju ispisuje link u konzolu servera.
+- Integracioni testovi su `*.dbtest.ts` (`npm run test:db`), jedinicni `*.test.ts` (`npm test`, bez baze).
 - Lokalni docker korisnik je superuser, pa RLS tu ne filtrira; za produkciju napraviti posebnu
   ulogu aplikacije koja nije vlasnik tabela.
 
 ## Redosled gradnje
 
-1. ~~Kostur Next.js, konekcija na bazu, migracije, tenant resolution~~ (napisano, treba pokrenuti)
-2. Autentifikacija, uloge, `can()`, audit log.
-3. **Zakazivanje**: `POST /api/appointments` (transakcija, snapshot cene/trajanja, hvatanje
-   exclusion greske `23P01` -> "termin je upravo zauzet", gost potvrda, link za otkazivanje).
-   Algoritam slobodnih termina je gotov (vidi iznad).
+1. ~~Kostur Next.js, konekcija na bazu, migracije, tenant resolution~~ (gotovo, provereno)
+2. Autentifikacija, uloge, `can()`, audit log. **Sledeci korak.** Posle njega: zakazivanje za
+   ulogovanog klijenta (`client_user_id`), "Moj nalog".
+3. ~~Zakazivanje gosta~~ (gotovo, vidi `docs/zakazivanje.md`). Pre produkcije: rate limit,
+   email provajder, odluka o rezervacijama za salone u statusu `draft`.
 4. Panel vlasnika/zaposlenih: kalendar, termini, zaposleni, smene, odsustva.
 5. Admin panel: izbor salona, uredjivanje sadrzaja, galerije, cena.
 6. Javni sajt salona sa sadrzajem iz baze, SEO.
@@ -138,6 +142,7 @@ npm run db:migrate                # primeni migracije
 npm run db:seed                   # probni salon "demo" (opciono)
 npm run dev                       # http://demo.localhost:3000
 npm test                          # jedinicni testovi (bez baze)
+npm run test:db                   # integracioni testovi (baza mora da radi)
 npm run typecheck
 ```
 `*.localhost` radi u Chrome/Edge/Firefox bez podesavanja hosts fajla.
