@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { normalizePhone, parseGuestBooking } from './validate';
+import { normalizePhone, parseGuestBooking, parseStaffBooking } from './validate';
 
 const LOC = '22222222-2222-4222-8222-222222222222';
 const SRV = '33333333-3333-4333-8333-333333333331';
@@ -73,4 +73,33 @@ test('neispravna polja daju jasnu gresku', () => {
   }
   assert.deepEqual(parseGuestBooking(null), { ok: false, error: 'invalid_body' });
   assert.deepEqual(parseGuestBooking('x'), { ok: false, error: 'invalid_body' });
+});
+
+const staffFields = {
+  locationId: '22222222-2222-4222-8222-222222222222',
+  serviceId: '33333333-3333-4333-8333-333333333331',
+  staffId: '',
+  start: '2026-11-02T09:00:00.000Z',
+  name: '  Petar  Petrović ',
+  phone: '064 123 4567',
+  email: '',
+  note: '',
+};
+
+test('parseStaffBooking: email opcion, prazan radnik = bilo koji, bez saglasnosti', () => {
+  const r = parseStaffBooking(staffFields);
+  assert.ok(r.ok);
+  assert.equal(r.value.staffId, null);
+  assert.equal(r.value.guest.email, null);
+  assert.equal(r.value.guest.name, 'Petar Petrović');
+  assert.equal(r.value.guest.phone, '+381641234567');
+  assert.equal(r.value.note, null);
+});
+
+test('parseStaffBooking: proverava email kad je unet, telefon je obavezan', () => {
+  assert.deepEqual(parseStaffBooking({ ...staffFields, email: 'nije-email' }), { ok: false, error: 'invalid_email' });
+  const withEmail = parseStaffBooking({ ...staffFields, email: 'Petar@Primer.rs' });
+  assert.ok(withEmail.ok);
+  assert.equal(withEmail.value.guest.email, 'petar@primer.rs');
+  assert.deepEqual(parseStaffBooking({ ...staffFields, phone: '' }), { ok: false, error: 'invalid_phone' });
 });

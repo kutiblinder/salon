@@ -11,10 +11,11 @@ export const PENDING_TTL_MIN = 15;
 
 export interface CreatedAppointment {
   id: string;
-  status: 'pending';
+  status: 'pending' | 'confirmed';
   startsAt: string;
   endsAt: string;
-  pendingExpiresAt: string;
+  /** null kad je termin odmah potvrdjen (uneo ga je salon) */
+  pendingExpiresAt: string | null;
   timezone: string;
   service: { id: string; name: string; price: string; currency: string; durationMin: number };
   staff: { id: string; name: string };
@@ -26,17 +27,36 @@ export type CreateGuestAppointmentResult =
 
 const EXCLUSION_VIOLATION = '23P01';
 
-/**
- * Zakazuje termin za gosta. Pozivati unutar withTenant() (transakcija).
- * Slot se proverava istim algoritmom kao GET /api/availability; konacnu zastitu od
- * duplog zakazivanja daje constraint no_double_booking u bazi.
- */
-export async function createGuestAppointment(
+/** Ko unosi termin: gost sa sajta (ceka potvrdu) ili salon (telefonom/licno, odmah potvrdjen). */
+export type BookingSource = { kind: 'guest' } | { kind: 'staff'; createdByUserId: string };
+
+export interface BookingInput extends Omit<GuestBookingInput, 'guest'> {
+  guest: { name: string; phone: string; email: string | null };
+}
+
+/** Zakazuje termin za gosta sa sajta. Pozivati unutar withTenant() (transakcija). */
+export function createGuestAppointment(
   client: PoolClient,
   organizationId: string,
   input: GuestBookingInput,
   nowMs: number,
 ): Promise<CreateGuestAppointmentResult> {
+  return createAppointment(client, organizationId, input, nowMs, { kind: 'guest' });
+}
+
+/**
+ * Upis termina. Slot se proverava istim algoritmom kao GET /api/availability; konacnu zastitu
+ * od duplog zakazivanja daje constraint no_double_booking u bazi.
+ * Salon (source 'staff') moze da zakaze i bez minimalnog vremena unapred (klijent je vec tu).
+ */
+export async function createAppointment(
+  client: PoolClient,
+  organizationId: string,
+  input: BookingInput,
+  nowMs: number,
+  source: BookingSource,
+): Promise<CreateGuestAppointmentResult> {
+  const byStaff = source.kind === 'staff';
   await expirePendingAppointments(client, organizationId);
 
   const locRes = await client.query<{ timezone: string }>(
@@ -56,6 +76,7 @@ export async function createGuestAppointment(
     staffId: input.staffId,
     date,
     nowMs,
+    minNoticeMin: byStaff ? 0 : undefined,
   });
   if (!availability) return { ok: false, error: 'not_found' };
 
@@ -88,15 +109,20 @@ export async function createGuestAppointment(
 
     await client.query('SAVEPOINT booking');
     try {
-      const ins = await client.query<{ id: string; pending_expires_at: Date }>(
+      const ins = await client.query<{ id: string; pending_expires_at: Date | null }>(
         `INSERT INTO appointments (
            organization_id, location_id, staff_id, service_id,
            guest_name, guest_phone, guest_email,
            starts_at, ends_at,
            service_name_snapshot, price_snapshot, duration_snapshot_min,
-           status, pending_expires_at, client_note, manage_token_hash, privacy_consent_at)
+           status, pending_expires_at, confirmed_at, client_note, manage_token_hash,
+           privacy_consent_at, created_by_user_id)
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12,
-                 'pending', now() + make_interval(mins => $13), $14, $15, now())
+                 CASE WHEN $16::uuid IS NULL THEN 'pending' ELSE 'confirmed' END::appointment_status,
+                 CASE WHEN $16::uuid IS NULL THEN now() + make_interval(mins => $13) END,
+                 CASE WHEN $16::uuid IS NOT NULL THEN now() END,
+                 $14, $15,
+                 CASE WHEN $16::uuid IS NULL THEN now() END, $16::uuid)
          RETURNING id, pending_expires_at`,
         [
           organizationId, input.locationId, staffId, input.serviceId,
@@ -104,6 +130,7 @@ export async function createGuestAppointment(
           new Date(input.startMs).toISOString(), new Date(endsAtMs).toISOString(),
           service.name, service.price, staff.durationMin,
           PENDING_TTL_MIN, input.note, hash,
+          byStaff ? source.createdByUserId : null,
         ],
       );
       await client.query('RELEASE SAVEPOINT booking');
@@ -113,10 +140,10 @@ export async function createGuestAppointment(
         token,
         appointment: {
           id: row.id,
-          status: 'pending',
+          status: byStaff ? 'confirmed' : 'pending',
           startsAt: new Date(input.startMs).toISOString(),
           endsAt: new Date(endsAtMs).toISOString(),
-          pendingExpiresAt: row.pending_expires_at.toISOString(),
+          pendingExpiresAt: row.pending_expires_at?.toISOString() ?? null,
           timezone,
           service: {
             id: service.id,

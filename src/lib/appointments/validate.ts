@@ -38,11 +38,28 @@ function cleanText(value: unknown, maxLength: number): string | null {
   return text.length > 0 && text.length <= maxLength ? text : null;
 }
 
-/** Proverava telo zahteva POST /api/appointments (gost, bez naloga). */
-export function parseGuestBooking(body: unknown): ValidationResult<GuestBookingInput> {
-  if (typeof body !== 'object' || body === null) return { ok: false, error: 'invalid_body' };
-  const b = body as Record<string, unknown>;
 
+export interface StaffBookingInput extends Omit<GuestBookingInput, 'guest'> {
+  guest: { name: string; phone: string; email: string | null };
+}
+
+type ParsedEmail = { ok: true; value: string | null } | { ok: false; error: string };
+
+function parseEmail(value: unknown, required: boolean): ParsedEmail {
+  if (!required && (value === undefined || value === null || (typeof value === 'string' && value.trim() === ''))) {
+    return { ok: true, value: null };
+  }
+  const email = cleanText(value, 254);
+  if (!email || !EMAIL.test(email)) return { ok: false, error: 'invalid_email' };
+  return { ok: true, value: email.toLowerCase() };
+}
+
+/** Zajednicki deo: lokacija, usluga, radnik, pocetak, (saglasnost), ime, telefon, email, napomena. */
+function parseBooking(
+  b: Record<string, unknown>,
+  g: Record<string, unknown>,
+  opts: { consentRequired: boolean; emailRequired: boolean },
+): ValidationResult<StaffBookingInput> {
   const staffId = b.staffId ?? null;
   if (
     typeof b.locationId !== 'string' || !UUID.test(b.locationId) ||
@@ -56,15 +73,14 @@ export function parseGuestBooking(body: unknown): ValidationResult<GuestBookingI
   const startMs = Date.parse(b.start);
   if (Number.isNaN(startMs)) return { ok: false, error: 'invalid_start' };
 
-  if (b.privacyConsent !== true) return { ok: false, error: 'consent_required' };
+  if (opts.consentRequired && b.privacyConsent !== true) return { ok: false, error: 'consent_required' };
 
-  const g = (typeof b.guest === 'object' && b.guest !== null ? b.guest : {}) as Record<string, unknown>;
   const name = cleanText(g.name, 100);
   if (!name) return { ok: false, error: 'invalid_name' };
   const phone = typeof g.phone === 'string' ? normalizePhone(g.phone) : null;
   if (!phone) return { ok: false, error: 'invalid_phone' };
-  const email = cleanText(g.email, 254);
-  if (!email || !EMAIL.test(email)) return { ok: false, error: 'invalid_email' };
+  const email = parseEmail(g.email, opts.emailRequired);
+  if (!email.ok) return email;
 
   let note: string | null = null;
   if (b.note !== undefined && b.note !== null && b.note !== '') {
@@ -79,8 +95,25 @@ export function parseGuestBooking(body: unknown): ValidationResult<GuestBookingI
       serviceId: b.serviceId.toLowerCase(),
       staffId: staffId === null ? null : (staffId as string).toLowerCase(),
       startMs,
-      guest: { name, phone, email: email.toLowerCase() },
+      guest: { name, phone, email: email.value },
       note,
     },
   };
+}
+
+/** Proverava telo zahteva POST /api/appointments (gost, bez naloga). */
+export function parseGuestBooking(body: unknown): ValidationResult<GuestBookingInput> {
+  if (typeof body !== 'object' || body === null) return { ok: false, error: 'invalid_body' };
+  const b = body as Record<string, unknown>;
+  const g = (typeof b.guest === 'object' && b.guest !== null ? b.guest : {}) as Record<string, unknown>;
+  return parseBooking(b, g, { consentRequired: true, emailRequired: true }) as ValidationResult<GuestBookingInput>;
+}
+
+/**
+ * Termin koji unosi salon iz panela (polja forme). Email je opcion, saglasnost se ne trazi
+ * (podatke unosi salon); prazan staffId = "bilo koji radnik".
+ */
+export function parseStaffBooking(fields: Record<string, unknown>): ValidationResult<StaffBookingInput> {
+  const b = { ...fields, staffId: fields.staffId === '' || fields.staffId === undefined ? null : fields.staffId };
+  return parseBooking(b, fields, { consentRequired: false, emailRequired: false });
 }

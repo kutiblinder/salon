@@ -23,6 +23,8 @@ export interface AvailabilityQuery {
   /** Lokalni datum lokacije, 'YYYY-MM-DD' */
   date: string;
   nowMs: number;
+  /** Najmanje vreme unapred; podrazumevano MIN_NOTICE_MIN (osoblje u panelu: 0) */
+  minNoticeMin?: number;
 }
 
 export interface AvailabilityResult {
@@ -183,7 +185,7 @@ export async function getAvailability(
   const busyByStaff = groupIntervals(busyRes.rows);
 
   // 5) Slobodni pocetci po zaposlenom, pa spajanje
-  const earliestStartMs = q.nowMs + MIN_NOTICE_MIN * 60_000;
+  const earliestStartMs = q.nowMs + (q.minNoticeMin ?? MIN_NOTICE_MIN) * 60_000;
   const perStaff = staff.map((s) => {
     const weekly: WeeklyEntry[] = weeklyRes.rows
       .filter((r) => r.staff_id === s.id)
