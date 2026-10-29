@@ -172,7 +172,8 @@ Reset baze: `docker compose down -v`, pa `up -d` i `npm run db:migrate`.
 ## Pravila rada
 
 - Prvo kratak plan, pa implementacija u malim koracima; pitaj vlasnika kad je odluka njegova.
-- Git: grana po funkciji (`feature/...`), jasne commit poruke na engleskom. Nikad ne commit-uj
+- Git: grana po funkciji (`feature/...`), jasne commit poruke na engleskom. Posle merge-a u `main`
+  (glavna grana je `main`, ne `master`) uvek obrisi spojene grane, lokalno i na GitHub-u. Nikad ne commit-uj
   `.env`, kljuceve ni dump baze sa pravim podacima klijenata.
 - Ne uvodi nove tehnologije ni biblioteke bez obrazlozenja.
 - Pre zavrsetka zadatka pokreni `npm test` i `npm run typecheck`; za bazu proveri da migracije prolaze na praznoj bazi.
