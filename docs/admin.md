@@ -18,9 +18,15 @@ kao korisnika. Prijava: nalog sa `organization_id` NULL i ulogom `admin` na plat
   Kontrast belog/crnog teksta na toj boji se racuna u `src/lib/admin/theme.ts`.
 - Tekstovi: `site_content` kljuc-vrednost. Dozvoljeni kljucevi su u kodu (`CONTENT_FIELDS` u
   `src/lib/admin/content-types.ts`). Svaka izmena polja ide u `site_content_history`.
-- Logo, favicon i galerija nisu ovde: treba object storage (S3/R2), korak posle cena.
+- Logo, favicon i galerija nisu ovde: treba object storage (S3/R2).
+
+## Cenovnik (`/admin/cene`)
+
+- Dozvole `services.edit` (katalog) i `prices.edit` (cena/trajanje/buffer po objektu). Admin ima obe.
+- Usluga na nivou salona (`services`); cena, trajanje i pauza po lokaciji (`location_services`), valuta RSD.
+- Bar jedan objekat. Skidanje objekta brise red u `location_services` (postojeci termini zadrze snimak cene).
+- Deaktivacija umesto brisanja. Kategorije usluga nisu u ovom koraku.
 
 ## Sledece (isti korak 5)
 
-- Cenovnik: `services` + `location_services` (cena, trajanje, buffer po objektu).
 - Galerija: `media` + `gallery_items`, kad bude skladiste slika.
