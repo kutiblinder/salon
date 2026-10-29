@@ -14,9 +14,13 @@
     "test:db": "node --env-file=.env --import tsx --test --test-concurrency=1 \"src/**/*.dbtest.ts\"",
     "db:migrate": "node --env-file=.env --import tsx scripts/migrate.ts",
     "db:seed": "node --env-file=.env --import tsx scripts/run-sql.ts db/seed/dev_seed.sql",
-    "jobs:expire-pending": "node --env-file=.env --import tsx scripts/expire-pending.ts"
+    "jobs:expire-pending": "node --env-file=.env --import tsx scripts/expire-pending.ts",
+    "user:create": "node --env-file=.env --import tsx scripts/create-user.ts"
   },
   "dependencies": {
+    "@better-auth/kysely-adapter": "^1.7.14",
+    "better-auth": "^1.7.14",
+    "kysely": "^0.29.7",
     "next": "^16.0.0",
     "pg": "^8.13.0",
     "react": "^19.2.0",

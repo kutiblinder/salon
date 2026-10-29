@@ -89,7 +89,12 @@ docker compose up -d
 docker compose ps          # u koloni statusa mora da piše: healthy
 npm run db:migrate         # pravi tabele
 npm run db:seed            # probni salon "demo" sa radnicima i uslugama (opciono)
+npm run user:create '--' --platform-admin --email ti@primer.rs --name "Ime Prezime"   # tvoj admin nalog
+npm run user:create '--' --org demo --role owner --email vlasnik@primer.rs --name "Vlasnik"   # vlasnik demo salona
 ```
+
+Skripta ispiše generisanu lozinku. `'--'` je pod navodnicima zbog PowerShell-a (u bash-u može i bez).
+Više u [`docs/autentifikacija.md`](docs/autentifikacija.md).
 
 **3. Aplikacija:**
 
@@ -99,7 +104,9 @@ npm run dev
 
 Otvori:
 
-- http://demo.localhost:3000 — sajt probnog salona (`*.localhost` radi u Chrome/Edge/Firefox)
+- http://demo.localhost:3000 — sajt probnog salona (`*.localhost` radi u Chrome/Edge/Firefox);
+  `/prijava`, `/registracija`, `/nalog`, `/panel`
+- http://localhost:3000/admin — admin platforme (domen platforme; nalog iz `user:create --platform-admin`)
 - http://localhost:3000/api/health — treba `{"status":"ok","db":"up"}`
 - Slobodni termini (Fade šišanje, bilo koji radnik; zameni datum budućim radnim danom):
   http://demo.localhost:3000/api/availability?locationId=22222222-2222-4222-8222-222222222222&serviceId=33333333-3333-4333-8333-333333333331&date=2026-11-02
@@ -119,6 +126,7 @@ Zakazivanje gosta i link za potvrdu/otkazivanje: vidi [`docs/zakazivanje.md`](do
 | `npm run db:migrate` | primeni nove SQL migracije iz `db/migrations` |
 | `npm run db:seed` | ubaci probne podatke (`db/seed/dev_seed.sql`) |
 | `npm run jobs:expire-pending` | otkaži nepotvrđene gost-termine kojima je istekao rok (u produkciji cron) |
+| `npm run user:create '--' ...` | napravi nalog admina platforme, vlasnika, menadžera ili zaposlenog |
 | `docker compose stop` | zaustavi bazu (podaci ostaju) |
 | `docker compose down -v` | obriši bazu i podatke (čist početak), posle toga ponovo `up -d` i `db:migrate` |
 
@@ -131,12 +139,14 @@ salon/
 ├── db/
 │   ├── migrations/                 šema baze (001_init.sql, 002_...)
 │   └── seed/dev_seed.sql           probni podaci
-├── scripts/                        migrate.ts, run-sql.ts, expire-pending.ts
+├── scripts/                        migrate.ts, run-sql.ts, expire-pending.ts, create-user.ts
 ├── src/
 │   ├── app/                        Next.js stranice i API rute
 │   └── lib/
 │       ├── availability/           algoritam slobodnih termina (+ testovi)
 │       ├── appointments/           zakazivanje, potvrda/otkazivanje tokenom, istek
+│       ├── auth/                   Better Auth, nalozi po salonu, can() dozvole
+│       ├── audit.ts                audit log
 │       ├── notify.ts               obaveštenja (za sada samo log u razvoju)
 │       ├── db.ts                   konekcija na PostgreSQL, withTenant()
 │       ├── tenant.ts, tenant-key.ts   prepoznavanje salona iz domena
@@ -163,6 +173,14 @@ Posle prvog `npm install` commit-uj i `package-lock.json`.
 - **Port 5432 zauzet:** u `.env` stavi `POSTGRES_PORT=5433` i isti port u `DATABASE_URL`.
 - **`db:migrate` kaže da `.env` ne postoji / DATABASE_URL nije podešen:** napravi `.env` iz `.env.example`.
 - **`password authentication failed`:** lozinka u `DATABASE_URL` ne odgovara `POSTGRES_PASSWORD`. Ako si menjao lozinku posle prvog pokretanja baze: `docker compose down -v`, pa ponovo.
-- **`demo.localhost` ne otvara stranu:** koristi Chrome, Edge ili Firefox, ili goli `http://localhost:3000` (u razvoju prikazuje salon iz `DEV_TENANT_SLUG`).
+- **`demo.localhost` ne otvara stranu:** koristi Chrome, Edge ili Firefox (goli `http://localhost:3000` je domen platforme, ne salona).
+- **`npm install` visi ili javlja `unable to verify the first certificate`:** antivirus (npr. AVG/Avast) skenira HTTPS svojim sertifikatom, kome Node ne veruje. Izvezi taj sertifikat i reci Node-u da mu veruje (jednom, PowerShell):
+  ```powershell
+  $c = Get-ChildItem Cert:\LocalMachine\Root | Where-Object Subject -match 'AVG|Avast' | Select-Object -First 1
+  New-Item -ItemType Directory -Force "$env:USERPROFILE\.certs" | Out-Null
+  "-----BEGIN CERTIFICATE-----`n$([Convert]::ToBase64String($c.RawData, 'InsertLineBreaks'))`n-----END CERTIFICATE-----" | Set-Content -Encoding ascii "$env:USERPROFILE\.certs\avg-root.pem"
+  [Environment]::SetEnvironmentVariable('NODE_EXTRA_CA_CERTS', "$env:USERPROFILE\.certs\avg-root.pem", 'User')
+  ```
+  Zatim zatvori i ponovo otvori terminal (i Cursor). Proveru sertifikata ne isključuj (`strict-ssl false`).
 - **Greške tipa `bad interpreter` ili `\r`:** fajl ima Windows završetke redova; `git add --renormalize .`
 - **Linux: `permission denied` za Docker:** odjavi se i prijavi posle `usermod`.

@@ -23,13 +23,7 @@ const SELECT_BY_DOMAIN = `
  * Koristi se samo `Host` header (ne X-Forwarded-Host): reverse proxy (Caddy) prosledjuje Host.
  */
 export async function resolveTenantByHost(rawHost: string | null | undefined): Promise<Tenant | null> {
-  const baseDomain = process.env.BASE_DOMAIN ?? 'localhost';
-  let key = tenantKeyFromHost(rawHost, baseDomain);
-
-  // Samo u razvoju: goli localhost prikazuje salon iz DEV_TENANT_SLUG
-  if (key?.kind === 'platform' && process.env.NODE_ENV !== 'production' && process.env.DEV_TENANT_SLUG) {
-    key = { kind: 'slug', slug: process.env.DEV_TENANT_SLUG };
-  }
+  const key = tenantKeyFromHost(rawHost, process.env.BASE_DOMAIN ?? 'localhost');
   if (!key || key.kind === 'platform') return null;
 
   const pool = getPool();

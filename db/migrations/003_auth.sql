@@ -1,0 +1,118 @@
+-- Autentifikacija (Better Auth) i nalozi po salonu.
+--
+-- Svaki nalog pripada jednom salonu (users.organization_id): klijenti, zaposleni, menadžeri
+-- i vlasnik postoje samo na domenu svog salona. Isti email na drugom salonu je drugi nalog.
+-- organization_id NULL = nalog platforme (vlasnik projekta), prijava samo na domenu platforme.
+
+-- ---------------------------------------------------------------------
+-- users: kolone koje očekuje Better Auth, email jedinstven po salonu
+-- ---------------------------------------------------------------------
+ALTER TABLE users
+  ADD COLUMN organization_id uuid REFERENCES organizations(id) ON DELETE CASCADE,
+  ADD COLUMN email_verified boolean NOT NULL DEFAULT false,
+  ADD COLUMN image text,
+  ADD COLUMN updated_at timestamptz NOT NULL DEFAULT now(),
+  ADD COLUMN privacy_consent_at timestamptz,   -- registracija klijenta: prihvatio politiku privatnosti
+  DROP COLUMN password_hash,            -- lozinke su u accounts (Better Auth)
+  DROP COLUMN email_verified_at,        -- zamenjeno sa email_verified
+  DROP CONSTRAINT users_email_key,
+  DROP CONSTRAINT users_check;          -- (email ili telefon): sada je email obavezan
+ALTER TABLE users ALTER COLUMN email SET NOT NULL;
+
+CREATE UNIQUE INDEX users_org_email_idx ON users (organization_id, email) NULLS NOT DISTINCT;
+ALTER TABLE users ADD CONSTRAINT users_id_org_key UNIQUE NULLS NOT DISTINCT (id, organization_id);
+
+-- ---------------------------------------------------------------------
+-- Better Auth tabele. organization_id je kopija sa korisnika: svaki upit
+-- iz aplikacije filtrira po salonu iz Host headera (src/lib/auth/adapter.ts).
+-- ---------------------------------------------------------------------
+CREATE TABLE sessions (
+  id              uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  token           text NOT NULL UNIQUE,
+  user_id         uuid NOT NULL,
+  organization_id uuid,
+  expires_at      timestamptz NOT NULL,
+  ip_address      text,
+  user_agent      text,
+  -- Samo za nalog platforme: salon u koji je admin "ušao"
+  active_organization_id uuid REFERENCES organizations(id) ON DELETE SET NULL,
+  created_at      timestamptz NOT NULL DEFAULT now(),
+  updated_at      timestamptz NOT NULL DEFAULT now(),
+  -- Složeni FK se ne proverava kad je organization_id NULL (MATCH SIMPLE), zato i obični
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+  FOREIGN KEY (user_id, organization_id) REFERENCES users(id, organization_id) ON DELETE CASCADE,
+  CHECK (organization_id IS NULL OR active_organization_id IS NULL)
+);
+CREATE INDEX sessions_user_idx ON sessions (user_id);
+
+CREATE TABLE accounts (
+  id              uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  account_id      text NOT NULL,
+  provider_id     text NOT NULL,          -- 'credential' = email + lozinka
+  user_id         uuid NOT NULL,
+  organization_id uuid,
+  access_token    text,
+  refresh_token   text,
+  id_token        text,
+  access_token_expires_at  timestamptz,
+  refresh_token_expires_at timestamptz,
+  scope           text,
+  password        text,                   -- hash (scrypt), nikad sama lozinka
+  created_at      timestamptz NOT NULL DEFAULT now(),
+  updated_at      timestamptz NOT NULL DEFAULT now(),
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+  FOREIGN KEY (user_id, organization_id) REFERENCES users(id, organization_id) ON DELETE CASCADE
+);
+CREATE INDEX accounts_user_idx ON accounts (user_id);
+
+CREATE TABLE verifications (
+  id          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  identifier  text NOT NULL,
+  value       text NOT NULL,
+  expires_at  timestamptz NOT NULL,
+  created_at  timestamptz NOT NULL DEFAULT now(),
+  updated_at  timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX verifications_identifier_idx ON verifications (identifier);
+
+-- ---------------------------------------------------------------------
+-- Nalozi ne smeju da pređu granicu salona
+-- ---------------------------------------------------------------------
+-- Profil zaposlenog vezuje se samo za nalog istog salona
+ALTER TABLE staff DROP CONSTRAINT staff_user_id_fkey;
+ALTER TABLE staff ADD CONSTRAINT staff_user_org_fkey
+  FOREIGN KEY (user_id, organization_id) REFERENCES users(id, organization_id) ON DELETE SET NULL (user_id);
+CREATE UNIQUE INDEX staff_user_idx ON staff (user_id) WHERE user_id IS NOT NULL;
+
+-- Termin registrovanog klijenta: klijent iz istog salona
+ALTER TABLE appointments DROP CONSTRAINT appointments_client_user_id_fkey;
+ALTER TABLE appointments ADD CONSTRAINT appointments_client_org_fkey
+  FOREIGN KEY (client_user_id, organization_id) REFERENCES users(id, organization_id) ON DELETE SET NULL (client_user_id);
+
+-- Članstvo: nalog salona dobija uloge samo u svom salonu; nalog platforme samo 'platform' uloge
+CREATE FUNCTION check_membership_realm() RETURNS trigger LANGUAGE plpgsql AS $$
+DECLARE
+  user_org uuid;
+BEGIN
+  SELECT organization_id INTO user_org FROM users WHERE id = NEW.user_id;
+  IF NEW.scope = 'platform' AND user_org IS NOT NULL THEN
+    RAISE EXCEPTION 'Salon account % cannot have a platform membership', NEW.user_id;
+  END IF;
+  IF NEW.scope <> 'platform' AND user_org IS DISTINCT FROM NEW.organization_id THEN
+    RAISE EXCEPTION 'User % does not belong to organization %', NEW.user_id, NEW.organization_id;
+  END IF;
+  IF NEW.location_id IS NOT NULL AND NOT EXISTS (
+    SELECT 1 FROM locations WHERE id = NEW.location_id AND organization_id = NEW.organization_id
+  ) THEN
+    RAISE EXCEPTION 'Location % does not belong to organization %', NEW.location_id, NEW.organization_id;
+  END IF;
+  RETURN NEW;
+END;
+$$;
+CREATE TRIGGER memberships_realm_check
+  BEFORE INSERT OR UPDATE ON memberships
+  FOR EACH ROW EXECUTE FUNCTION check_membership_realm();
+
+-- Uloga 'admin' postoji samo na nivou platforme
+ALTER TABLE memberships ADD CONSTRAINT memberships_admin_platform_check
+  CHECK ((role = 'admin') = (scope = 'platform'));

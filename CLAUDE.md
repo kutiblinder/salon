@@ -16,7 +16,9 @@ logo, boje, sadrzaj, usluge i cene. Gradi se sam vlasnik projekta, za pocetak ne
   Javne stranice se renderuju na serveru (SEO: "frizer Zemun", schema.org `HairSalon`).
 - **PostgreSQL 16** u Dockeru (`docker-compose.yml`). Isto lokalno i na Hetzner VPS-u.
 - **Mobilni prikaz je prioritet** (vecina klijenata zakazuje sa telefona). Tailwind CSS.
-- Autentifikacija: gotovo resenje (npr. Auth.js), ne pisati od nule.
+- Autentifikacija: **Better Auth** (odluka vlasnika; Auth.js je od 2025. deo Better Auth-a i samo
+  se odrzava), email + lozinka. Detalji u `docs/autentifikacija.md`. Better Auth koristi Kysely
+  samo interno (omotac za izolaciju po salonu); aplikacija i dalje pise upite kroz `pg`.
 - **Migracije**: izvor istine je SQL u `db/migrations/` (`001_init.sql`). Sema koristi exclusion
   constraint i Row Level Security, koje ORM-ovi poput Prisme ne modeluju dobro, pa su obicne SQL
   migracije. Pokrece ih `scripts/migrate.ts` (`npm run db:migrate`), evidencija u tabeli
@@ -35,12 +37,19 @@ logo, boje, sadrzaj, usluge i cene. Gradi se sam vlasnik projekta, za pocetak ne
 - Svaka tabela sa podacima salona nosi `organization_id`. Svaki upit filtrira po njemu.
   Dodatna odbrana: Row Level Security (`SET LOCAL app.organization_id = '<uuid>'` na pocetku
   zahteva; aplikacija se konektuje ulogom koja nije vlasnik tabela).
-- Kolacici su vezani za domen: nalog klijenta je za pocetak **po salonu**.
+- **Svi nalozi pripadaju jednom salonu** (`users.organization_id`): klijenti, zaposleni, menadzeri,
+  vlasnik. Prijava je na domenu tog salona (`salon.rs/prijava`, panel `salon.rs/panel`); na
+  `salon2.rs` taj nalog ne postoji (isti email = drugi nalog). Klijent salona zakazuje u svim
+  njegovim objektima (lokacijama).
+- **Nalog platforme** (`organization_id` NULL) ima samo vlasnik projekta; prijava samo na domenu
+  platforme (`tvojsajt.rs/admin`, lokalno `localhost:3000/admin`). Saloni ga ne vide kao korisnika.
+- Kolacici su vezani za domen, a sesija se dodatno proverava po salonu u bazi.
 
 ## Uloge i dozvole
 
-- Jedan `users` nalog, vise `memberships` (`scope`: platform / organization / location; `role`:
-  admin, owner, manager, staff). Klijenti su obicni nalozi bez clanstva.
+- Nalog ima vise `memberships` (`scope`: platform / organization / location; `role`:
+  admin, owner, manager, staff), samo u svom salonu (trigger u bazi); `admin` samo na platformi.
+  Klijenti su obicni nalozi bez clanstva. Nalozi vlasnika/zaposlenih/admina: `npm run user:create`.
 - Dozvole su granularne (`content.edit`, `gallery.edit`, `prices.edit`, `services.edit`,
   `locations.manage`, `staff.manage`, `schedule.manage`, `appointments.manage`, `clients.view`).
   Podrazumevano po ulozi u `role_permissions`, izuzeci po salonu u
@@ -48,7 +57,8 @@ logo, boje, sadrzaj, usluge i cene. Gradi se sam vlasnik projekta, za pocetak ne
 - **Admin (vlasnik projekta) za pocetak sam menja sadrzaj, slike i cenovnik**; vlasnik salona
   radi operativu (smene, odsustva, termini, zaposleni). Kasnije se vlasniku dodeljuju
   `content.edit` / `prices.edit` prekidacem po salonu.
-- **Provera dozvola je na backendu**, u jednoj centralnoj funkciji `can(user, action, resource)`.
+- **Provera dozvola je na backendu**, u jednoj centralnoj funkciji `can(actor, permission, resource, rules)`
+  (`src/lib/auth/permissions.ts`; u route handlerima `authorize()` iz `src/lib/auth/actor.ts`).
   Sakrivanje dugmadi na frontendu nije zastita. "Samo svoje" (zaposleni) proveravaj i nad
   konkretnim objektom (`own_only`).
 - Admin "ulazi u salon" eksplicitno (izabere salon, pamti se u sesiji).
@@ -96,8 +106,8 @@ Pazi na kontrast boje teksta na primarnoj boji salona.
 ## Trenutno stanje (azurirati posle svakog vecog koraka)
 
 Gotovo i **provereno** na pravoj bazi (Postgres 16 u Dockeru, Next 16.4, `package-lock.json` u repou).
-`npm test`: 41 jedinicni test; `npm run test:db`: 6 integracionih testova; typecheck i `next build` prolaze;
-migracije prolaze na praznoj bazi.
+`npm test`: 52 jedinicna testa; `npm run test:db`: 10 integracionih testova; typecheck i `next build` prolaze;
+migracije (001-003) prolaze na praznoj bazi.
 - `src/lib/availability/`: `time.ts` (zone, DST, datumi), `schedule.ts` (`resolveShift`),
   `slots.ts` (`computeSlots`, `mergeStaffSlots`, `pickStaff`), `load.ts` (SQL upiti, `isBookableDate`).
 - `src/lib/tenant-key.ts`, `src/lib/tenant.ts`: Host -> slug / custom domen / platforma.
@@ -108,6 +118,14 @@ migracije prolaze na praznoj bazi.
   `npm run jobs:expire-pending`, migracija `002_appointment_booking.sql`. Kod u `src/lib/appointments/`.
   Trka dva zahteva za isti termin je pokrivena testom (`booking.dbtest.ts`): `23P01` -> `slot_taken`,
   a kod "bilo koji radnik" prelazi na sledeceg slobodnog.
+- **Autentifikacija i dozvole** (korak 2, `docs/autentifikacija.md`): Better Auth u `src/lib/auth/`
+  (`auth.ts` konfiguracija, `realm.ts` prostor iz Host headera, `adapter.ts` filter po salonu,
+  `session.ts`, `permissions.ts` `can()`, `actor.ts` ucitavanje + `authorize()`, `guards.ts`),
+  `src/lib/audit.ts` (`writeAudit`), migracija `003_auth.sql`, skripta `npm run user:create`.
+  Stranice: salon `/prijava`, `/registracija`, `/nalog`, `/panel`; platforma `/admin/prijava`, `/admin`
+  (izbor salona, `POST /api/admin/active-organization`, upisuje se u audit log).
+  Provereno preko HTTP-a: isti email u dva salona su dva naloga, kolacic jednog salona ne vazi
+  u drugom ni na platformi, nalozi salona se ne mogu prijaviti na platformu i obrnuto.
 
 Poznate odluke i ogranicenja algoritma:
 - `appointments.ends_at` = pocetak + trajanje + buffer; sama usluga mora da stane u smenu, buffer ne mora.
@@ -122,11 +140,12 @@ Poznate odluke i ogranicenja algoritma:
 ## Redosled gradnje
 
 1. ~~Kostur Next.js, konekcija na bazu, migracije, tenant resolution~~ (gotovo, provereno)
-2. Autentifikacija, uloge, `can()`, audit log. **Sledeci korak.** Posle njega: zakazivanje za
-   ulogovanog klijenta (`client_user_id`), "Moj nalog".
-3. ~~Zakazivanje gosta~~ (gotovo, vidi `docs/zakazivanje.md`). Pre produkcije: rate limit,
-   email provajder, odluka o rezervacijama za salone u statusu `draft`.
-4. Panel vlasnika/zaposlenih: kalendar, termini, zaposleni, smene, odsustva.
+2. ~~Autentifikacija, uloge, `can()`, audit log~~ (gotovo, vidi `docs/autentifikacija.md`).
+3. ~~Zakazivanje gosta~~ (gotovo, vidi `docs/zakazivanje.md`). Ostaje: zakazivanje za ulogovanog
+   klijenta (`client_user_id`, bez potvrde emailom) i istorija termina u "Moj nalog".
+   Pre produkcije: rate limit, email provajder, odluka o rezervacijama za salone u statusu `draft`.
+4. Panel vlasnika/zaposlenih: kalendar, termini, zaposleni, smene, odsustva. **Sledeci korak.**
+   Svaka izmena kroz `authorize()` / `can()` i `writeAudit()` u istoj transakciji.
 5. Admin panel: izbor salona, uredjivanje sadrzaja, galerije, cena.
 6. Javni sajt salona sa sadrzajem iz baze, SEO.
 7. Email obavestenja, pa SMS. Zatim custom domeni, Dockerfile i deploy na Hetzner.
@@ -140,7 +159,8 @@ npm install
 docker compose up -d              # PostgreSQL
 npm run db:migrate                # primeni migracije
 npm run db:seed                   # probni salon "demo" (opciono)
-npm run dev                       # http://demo.localhost:3000
+npm run user:create '--' --platform-admin --email ti@primer.rs --name "Ime"   # tvoj admin nalog
+npm run dev                       # salon: http://demo.localhost:3000, platforma: http://localhost:3000/admin
 npm test                          # jedinicni testovi (bez baze)
 npm run test:db                   # integracioni testovi (baza mora da radi)
 npm run typecheck
