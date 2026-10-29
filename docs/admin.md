@@ -18,7 +18,7 @@ kao korisnika. Prijava: nalog sa `organization_id` NULL i ulogom `admin` na plat
   Kontrast belog/crnog teksta na toj boji se racuna u `src/lib/admin/theme.ts`.
 - Tekstovi: `site_content` kljuc-vrednost. Dozvoljeni kljucevi su u kodu (`CONTENT_FIELDS` u
   `src/lib/admin/content-types.ts`). Svaka izmena polja ide u `site_content_history`.
-- Logo, favicon i galerija nisu ovde: treba object storage (S3/R2).
+- Logo i favicon nisu ovde (kasnije, isti mehanizam kao galerija).
 
 ## Cenovnik (`/admin/cene`)
 
@@ -27,6 +27,13 @@ kao korisnika. Prijava: nalog sa `organization_id` NULL i ulogom `admin` na plat
 - Bar jedan objekat. Skidanje objekta brise red u `location_services` (postojeci termini zadrze snimak cene).
 - Deaktivacija umesto brisanja. Kategorije usluga nisu u ovom koraku.
 
-## Sledece (isti korak 5)
+## Galerija (`/admin/galerija`)
 
-- Galerija: `media` + `gallery_items`, kad bude skladiste slika.
+- Dozvola `gallery.edit`. Slike se kompresuju u WebP (`sharp`), cuvaju na disku (`STORAGE_DIR`, podrazumevano `data/media`).
+  Isti volume na Hetzneru; S3/R2 kad bude nalog (interfejs `src/lib/storage.ts`).
+- Kvota: 40 slika, 5 MB original, 80 MB ukupno po salonu. Alt tekst je obavezan.
+- Javni URL: `/api/media/<mediaId>` samo na domenu tog salona (ili admin u tom salonu).
+
+## Sledece
+
+- Javni sajt (korak 6) cita iste tekstove, cene i galeriju.

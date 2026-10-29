@@ -26,7 +26,8 @@ logo, boje, sadrzaj, usluge i cene. Gradi se sam vlasnik projekta, za pocetak ne
 - **Upiti**: za sada obican `pg` (src/lib/db.ts, `withTenant()`); bez ORM-a. Ako postane naporno,
   predlozi Kysely i potvrdi sa vlasnikom.
 - Hosting kasnije: Hetzner VPS, Docker Compose, Caddy ispred (automatski HTTPS).
-- Slike: object storage (S3 ili Cloudflare R2), kompresija pri uploadu (WebP), kvote po salonu.
+- Slike: lokalni disk (`STORAGE_DIR`, volume na VPS-u), kompresija pri uploadu u WebP (`sharp`), kvote po salonu.
+  Interfejs u `src/lib/storage.ts` da se kasnije prikljuci S3/R2.
 - Obavestenja: email (Resend/Postmark), kasnije SMS podsetnici.
 
 ## Arhitektura i tenancy
@@ -106,7 +107,7 @@ Pazi na kontrast boje teksta na primarnoj boji salona.
 ## Trenutno stanje (azurirati posle svakog vecog koraka)
 
 Gotovo i **provereno** na pravoj bazi (Postgres 16 u Dockeru, Next 16.4, `package-lock.json` u repou).
-`npm test`: 92 jedinicna testa; `npm run test:db`: 36 integracionih testova; typecheck i `next build` prolaze;
+`npm test`: 96 jedinicnih testova; `npm run test:db`: 39 integracionih testova; typecheck i `next build` prolaze;
 migracije (001-003) prolaze na praznoj bazi.
 - `src/lib/availability/`: `time.ts` (zone, DST, datumi), `schedule.ts` (`resolveShift`),
   `slots.ts` (`computeSlots`, `mergeStaffSlots`, `pickStaff`), `load.ts` (SQL upiti, `isBookableDate`).
@@ -141,6 +142,7 @@ migracije (001-003) prolaze na praznoj bazi.
   `/admin/sadrzaj` naziv, status, primarna boja, tekstovi (`site_content` + istorija).
   Izmene kroz `runAdminAction()`; salon uvek iz `sessions.active_organization_id`.
 - **Admin: cene** (korak 5, deo 2): `/admin/cene` katalog usluga i cena/trajanje/buffer po lokaciji.
+- **Admin: galerija** (korak 5, deo 3): `/admin/galerija` WebP na disku (`STORAGE_DIR`), kvota po salonu, `/api/media/:id`.
 
 Poznate odluke i ogranicenja algoritma:
 - `appointments.ends_at` = pocetak + trajanje + buffer; sama usluga mora da stane u smenu, buffer ne mora.
@@ -162,8 +164,8 @@ Poznate odluke i ogranicenja algoritma:
 4. ~~Panel vlasnika/zaposlenih: kalendar, termini, zaposleni, smene, odsustva~~ (gotovo,
    vidi `docs/panel.md`). Gotovo: termini, smene, odsustva, zaposleni.
    Svaka izmena kroz `runPanelAction()` / `ctx.require()` i `writeAudit()` u istoj transakciji.
-5. Admin panel: izbor salona, uredjivanje sadrzaja, galerije, cena. **U toku.**
-   Gotovo: izbor salona, sadrzaj, cene (vidi `docs/admin.md`). Sledi: galerija (object storage).
+5. ~~Admin panel: izbor salona, uredjivanje sadrzaja, galerije, cena~~ (gotovo, vidi `docs/admin.md`).
+   Slike su na lokalnom disku (`sharp` -> WebP); S3/R2 kad bude nalog.
 6. Javni sajt salona sa sadrzajem iz baze, SEO.
 7. Email obavestenja, pa SMS. Zatim custom domeni, Dockerfile i deploy na Hetzner.
 

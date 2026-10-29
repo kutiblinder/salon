@@ -12,6 +12,7 @@ export default async function AdminConsoleLayout({ children }: { children: React
   if (session.activeOrganizationId) {
     items.push({ href: '/admin/sadrzaj', label: 'Sadržaj' });
     items.push({ href: '/admin/cene', label: 'Cene' });
+    items.push({ href: '/admin/galerija', label: 'Galerija' });
     const org = await getPool().query<{ name: string }>(`SELECT name FROM organizations WHERE id = $1`, [
       session.activeOrganizationId,
     ]);

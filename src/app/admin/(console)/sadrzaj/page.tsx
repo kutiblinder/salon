@@ -13,7 +13,7 @@ export default async function AdminContentPage() {
   return (
     <main>
       <h1 className="text-2xl font-semibold">Sadržaj</h1>
-      <p className="mt-1 text-neutral-600">Tekstovi i izgled sajta. Cenovnik je sledeća stavka; galerija kasnije.</p>
+      <p className="mt-1 text-neutral-600">Tekstovi i izgled sajta. Cenovnik i galerija su posebne stavke.</p>
       <div className="mt-6">
         <ContentForm salon={bundle.salon} values={bundle.values} />
       </div>
