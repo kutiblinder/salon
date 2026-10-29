@@ -3,19 +3,19 @@
  */
 import { after, before, test } from 'node:test';
 import assert from 'node:assert/strict';
-import { randomUUID } from 'node:crypto';
+import { testId } from '../test-id';
 import type { PoolClient } from 'pg';
 import { getPool, withTenant } from '../db';
 import { loadPanelContext, PanelError, type PanelContext, type SalonSession } from './core';
 import { createStaff, createStaffLogin, getStaff, updateStaff } from './staff';
 
-const ORG = randomUUID();
-const LOC_A = randomUUID();
-const LOC_B = randomUUID();
-const SERVICE = randomUUID();
-const OWNER_USER = randomUUID();
-const ANA_USER = randomUUID();
-const ANA = randomUUID();
+const ORG = testId();
+const LOC_A = testId();
+const LOC_B = testId();
+const SERVICE = testId();
+const OWNER_USER = testId();
+const ANA_USER = testId();
+const ANA = testId();
 
 before(async () => {
   await getPool().query(`
@@ -44,7 +44,7 @@ function session(userId: string): SalonSession {
       tenant: { id: ORG, name: 'Staff test', slug: 'stf', status: 'published', theme: {} },
     },
     user: { id: userId, name: 'u', email: 'u@test.rs', phone: null, organizationId: ORG },
-    sessionId: randomUUID(),
+    sessionId: testId(),
     activeOrganizationId: null,
   };
 }
@@ -101,7 +101,7 @@ test('skidanje lokacije brise smenu na toj lokaciji', async () => {
       services: [],
     }),
   );
-  const tpl = randomUUID();
+  const tpl = testId();
   await getPool().query(
     `INSERT INTO shift_templates (id, location_id, name, starts_at, ends_at) VALUES ($1, $2, 'Dan', '09:00', '17:00')`,
     [tpl, LOC_B],
@@ -173,7 +173,7 @@ test('nalog: novi email dobija lozinku; isti email u salonu se veze', async () =
     /vezan/,
   );
 
-  const clientUser = randomUUID();
+  const clientUser = testId();
   await getPool().query(
     `INSERT INTO users (id, organization_id, email, full_name) VALUES ($1, $2, 'klijent@test.rs', 'Klijent')`,
     [clientUser, ORG],

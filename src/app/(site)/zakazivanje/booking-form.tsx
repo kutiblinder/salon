@@ -83,14 +83,14 @@ export function BookingForm({
         staffId: staffId || null,
         start: slotStart,
         note: String(form.get('note') ?? '') || undefined,
+        guest: {
+          name: form.get('name'),
+          phone: form.get('phone'),
+          email: client ? client.email : form.get('email'),
+        },
       };
       if (!client) {
         body.privacyConsent = form.get('privacyConsent') === 'on';
-        body.guest = {
-          name: form.get('name'),
-          phone: form.get('phone'),
-          email: form.get('email'),
-        };
       }
       const res = await fetch('/api/appointments', {
         method: 'POST',
@@ -287,22 +287,44 @@ export function BookingForm({
         <section className="space-y-3 rounded-lg border border-neutral-200 p-4">
           {client ? (
             <p className="text-sm text-neutral-700">
-              Zakazujete kao {client.name} ({client.email}
-              {client.phone ? `, ${client.phone}` : ''}). Termin je odmah potvrđen.
+              Zakazujete kao {client.email}. Termin je odmah potvrđen. Ime i telefon su sa vašeg naloga.
             </p>
           ) : (
+            <p className="text-sm text-neutral-700">
+              Možete zakazati bez naloga. Unesite ime, telefon i email.{' '}
+              <a href="/prijava" className="underline">
+                Prijavite se
+              </a>{' '}
+              da se podaci popune sami.
+            </p>
+          )}
+          <label className="block text-sm font-medium">
+            Ime i prezime
+            <input
+              name="name"
+              className={inputClass}
+              required
+              maxLength={100}
+              autoComplete="name"
+              defaultValue={client?.name ?? ''}
+            />
+          </label>
+          <label className="block text-sm font-medium">
+            Telefon
+            <input
+              name="phone"
+              className={inputClass}
+              required
+              inputMode="tel"
+              autoComplete="tel"
+              defaultValue={client?.phone ?? ''}
+            />
+          </label>
+          {!client && (
             <>
               <label className="block text-sm font-medium">
-                Ime i prezime
-                <input name="name" className={inputClass} required maxLength={100} />
-              </label>
-              <label className="block text-sm font-medium">
-                Telefon
-                <input name="phone" className={inputClass} required inputMode="tel" />
-              </label>
-              <label className="block text-sm font-medium">
                 Email
-                <input name="email" type="email" className={inputClass} required />
+                <input name="email" type="email" className={inputClass} required autoComplete="email" />
               </label>
               <label className="flex items-start gap-2 text-sm">
                 <input type="checkbox" name="privacyConsent" className="mt-1 size-4" required />

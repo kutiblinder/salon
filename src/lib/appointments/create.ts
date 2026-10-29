@@ -104,7 +104,7 @@ export async function createAppointment(
   const loadRes = await client.query<{ staff_id: string; n: number }>(
     `SELECT staff_id, count(*)::int AS n
        FROM appointments
-      WHERE organization_id = $1 AND staff_id = ANY($2::uuid[])
+      WHERE organization_id = $1 AND staff_id = ANY($2::bigint[])
         AND status IN ('pending', 'confirmed')
         AND starts_at >= $3::timestamptz AND starts_at < $4::timestamptz
       GROUP BY staff_id`,
@@ -138,7 +138,7 @@ export async function createAppointment(
                  CASE WHEN $18 THEN NULL ELSE now() + make_interval(mins => $13) END,
                  CASE WHEN $18 THEN now() END,
                  $14, $15,
-                 CASE WHEN $18 THEN NULL ELSE now() END, $16::uuid)
+                 CASE WHEN $18 THEN NULL ELSE now() END, $16::bigint)
          RETURNING id, pending_expires_at`,
         [
           organizationId, input.locationId, staffId, input.serviceId,

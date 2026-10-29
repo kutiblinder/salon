@@ -7,12 +7,12 @@ import { parseStaffBooking } from '@/lib/appointments/validate';
 import { PanelError, runPanelAction, type ActionResult } from '@/lib/panel/context';
 import { createAppointmentByStaff, setAppointmentStatus } from '@/lib/panel/appointments';
 import { formatTime } from '@/lib/panel/format';
+import { isId } from '@/lib/ids';
 
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
 
 export async function changeAppointmentStatus(appointmentId: string, to: string): Promise<ActionResult> {
-  if (typeof appointmentId !== 'string' || !UUID.test(appointmentId) || !isPanelStatusAction(to)) {
+  if (typeof appointmentId !== 'string' || !isId(appointmentId) || !isPanelStatusAction(to)) {
     return { ok: false, error: 'Neispravan zahtev.' };
   }
   const result = await runPanelAction(async (client, ctx) => {
@@ -36,8 +36,8 @@ export async function loadPanelSlots(
   date: string,
 ): Promise<ActionResult<SlotOption[]>> {
   if (
-    !UUID.test(locationId) || !UUID.test(serviceId) ||
-    (staffId !== null && !UUID.test(staffId)) || !DATE.test(date)
+    !isId(locationId) || !isId(serviceId) ||
+    (staffId !== null && !isId(staffId)) || !DATE.test(date)
   ) {
     return { ok: false, error: 'Neispravan zahtev.' };
   }

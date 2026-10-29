@@ -3,16 +3,16 @@
  */
 import { after, before, test } from 'node:test';
 import assert from 'node:assert/strict';
-import { randomUUID } from 'node:crypto';
+import { testId } from '../test-id';
 import type { PoolClient } from 'pg';
 import { getPool, withTenant } from '../db';
 import { loadAdminContext, AdminError, type AdminContext, type PlatformSession } from './core';
 import { loadContent, saveContent } from './content';
 
-const ORG = randomUUID();
-const OTHER = randomUUID();
-const ADMIN_USER = randomUUID();
-const OWNER_USER = randomUUID();
+const ORG = testId();
+const OTHER = testId();
+const ADMIN_USER = testId();
+const OWNER_USER = testId();
 
 before(async () => {
   await getPool().query(`
@@ -38,7 +38,7 @@ function session(activeOrganizationId: string | null): PlatformSession {
   return {
     realm: { kind: 'platform' },
     user: { id: ADMIN_USER, name: 'Admin', email: 'admin-content@test.rs', phone: null, organizationId: null },
-    sessionId: randomUUID(),
+    sessionId: testId(),
     activeOrganizationId,
   };
 }
@@ -112,7 +112,7 @@ test('nalog salona nije admin platforme', async () => {
       loadAdminContext(client, {
         realm: { kind: 'platform' },
         user: { id: OWNER_USER, name: 'V', email: 'owner-content@test.rs', phone: null, organizationId: ORG },
-        sessionId: randomUUID(),
+        sessionId: testId(),
         activeOrganizationId: ORG,
       }),
     ),

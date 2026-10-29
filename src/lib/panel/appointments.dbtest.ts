@@ -3,7 +3,7 @@
  */
 import { after, before, test } from 'node:test';
 import assert from 'node:assert/strict';
-import { randomUUID } from 'node:crypto';
+import { testId } from '../test-id';
 import type { PoolClient } from 'pg';
 import { getPool, withTenant } from '../db';
 import { addDays, localDateOf, zonedTimeToUtcMs } from '../availability/time';
@@ -13,14 +13,14 @@ import { createAppointmentByStaff, loadDayAppointments, setAppointmentStatus } f
 import { PanelError, loadPanelContext, type PanelContext, type SalonSession } from './core';
 
 const TZ = 'Europe/Belgrade';
-const ORG = randomUUID();
-const LOC = randomUUID();
-const SERVICE = randomUUID();
-const ANA = randomUUID();
-const BOJAN = randomUUID();
-const SHIFT = randomUUID();
-const OWNER_USER = randomUUID();
-const ANA_USER = randomUUID();
+const ORG = testId();
+const LOC = testId();
+const SERVICE = testId();
+const ANA = testId();
+const BOJAN = testId();
+const SHIFT = testId();
+const OWNER_USER = testId();
+const ANA_USER = testId();
 const DATE = addDays(localDateOf(Date.now(), TZ), 7);
 const at = (hm: string) => zonedTimeToUtcMs(DATE, hm, TZ);
 
@@ -40,7 +40,7 @@ before(async () => {
     INSERT INTO staff_services (staff_id, service_id) VALUES ('${ANA}', '${SERVICE}'), ('${BOJAN}', '${SERVICE}');
     INSERT INTO shift_templates (id, location_id, name, starts_at, ends_at) VALUES ('${SHIFT}', '${LOC}', 'Dan', '09:00', '17:00');
     INSERT INTO weekly_schedule (staff_id, location_id, weekday, shift_template_id)
-      SELECT s, '${LOC}', d, '${SHIFT}' FROM unnest(ARRAY['${ANA}', '${BOJAN}']::uuid[]) s, generate_series(0, 6) d;`);
+      SELECT s, '${LOC}', d, '${SHIFT}' FROM unnest(ARRAY['${ANA}', '${BOJAN}']::bigint[]) s, generate_series(0, 6) d;`);
 });
 
 after(async () => {
@@ -56,7 +56,7 @@ function session(userId: string, name: string): SalonSession {
       tenant: { id: ORG, name: 'Panel test', slug: 'panel', status: 'published', theme: {} },
     },
     user: { id: userId, name, email: `${name}@test.rs`, phone: null, organizationId: ORG },
-    sessionId: randomUUID(),
+    sessionId: testId(),
     activeOrganizationId: null,
   };
 }

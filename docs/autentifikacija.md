@@ -43,8 +43,8 @@
   ```powershell
   npm run user:create '--' --platform-admin --email ti@primer.rs --name "Ime Prezime"
   npm run user:create '--' --org demo --role owner --email vlasnik@primer.rs --name "Vlasnik"
-  npm run user:create '--' --org demo --role staff --email marko@primer.rs --name "Marko" --staff <staff-uuid>
-  npm run user:create '--' --org demo --role manager --location <location-uuid> --email ... --name ...
+  npm run user:create '--' --org demo --role staff --email marko@primer.rs --name "Marko" --staff <staff-id>
+  npm run user:create '--' --org demo --role manager --location <location-id> --email ... --name ...
   ```
   `'--'` je pod navodnicima zbog PowerShell-a. Kasnije: pozivnice iz panela vlasnika (korak 4).
 

@@ -47,7 +47,7 @@ function createAuth() {
     database: realmScopedAdapter(kyselyAdapter(db, { type: 'postgres', transaction: true })),
     advanced: {
       cookiePrefix: 'salon',
-      database: { generateId: 'uuid' },
+      database: { generateId: false },
       trustedProxyHeaders: process.env.NODE_ENV === 'production',
     },
     emailAndPassword: {

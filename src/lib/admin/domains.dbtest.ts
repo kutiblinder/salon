@@ -3,7 +3,7 @@
  */
 import { after, before, test } from 'node:test';
 import assert from 'node:assert/strict';
-import { randomUUID } from 'node:crypto';
+import { testId } from '../test-id';
 import type { PoolClient } from 'pg';
 import { getPool, withTenant } from '../db';
 import { loadAdminContext, AdminError, type AdminContext, type PlatformSession } from './core';
@@ -11,9 +11,9 @@ import { resolveTenantByHost } from '../tenant';
 import { isTlsIssuanceAllowed } from '../tls-ask';
 import { addDomain, deleteDomain, listDomains, setDomainVerified } from './domains';
 
-const ORG = randomUUID();
-const OTHER = randomUUID();
-const ADMIN_USER = randomUUID();
+const ORG = testId();
+const OTHER = testId();
+const ADMIN_USER = testId();
 const DOMAIN = `t-${ORG.slice(0, 8)}.example.rs`;
 
 before(async () => {
@@ -38,7 +38,7 @@ function session(activeOrganizationId: string | null): PlatformSession {
   return {
     realm: { kind: 'platform' },
     user: { id: ADMIN_USER, name: 'Admin', email: 'admin-domains@test.rs', phone: null, organizationId: null },
-    sessionId: randomUUID(),
+    sessionId: testId(),
     activeOrganizationId,
   };
 }

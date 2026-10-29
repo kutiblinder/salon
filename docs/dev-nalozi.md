@@ -31,6 +31,7 @@ Panel: http://localhost.rs:3000/panel
 |---|---|---|---|
 | Vlasnik | Vlasnik Demo | `vlasnik@localhost.rs` | `vlasnik` |
 | Zaposleni | Marko | `zaposleni@localhost.rs` | `zaposleni` |
+| Mušterija | Petar Petrović | `musterija@localhost.rs` | `musterija` |
 
 ## Salon dva — http://sajt2.rs:3000
 
@@ -40,6 +41,7 @@ Panel: http://sajt2.rs:3000/panel
 |---|---|---|---|
 | Vlasnik | Vlasnik Dva | `vlasnik@sajt2.rs` | `vlasnik` |
 | Zaposleni | Ana | `zaposleni@sajt2.rs` | `zaposleni` |
+| Mušterija | Mila Jovanović | `musterija@sajt2.rs` | `musterija` |
 
 ## Salon tri — http://sajt3.rs:3000
 
@@ -49,5 +51,6 @@ Panel: http://sajt3.rs:3000/panel
 |---|---|---|---|
 | Vlasnik | Vlasnik Tri | `vlasnik@sajt3.rs` | `vlasnik` |
 | Zaposleni | Ivana | `zaposleni@sajt3.rs` | `zaposleni` |
+| Mušterija | Nikola Ilić | `musterija@sajt3.rs` | `musterija` |
 
 Nalog sa jednog sajta ne važi na drugom. Admin se prijavljuje samo na `localhost:3000/admin`, ne na sajtu salona.

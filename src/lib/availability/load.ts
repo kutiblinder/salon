@@ -100,7 +100,7 @@ export async function getAvailability(
        JOIN staff_locations sl ON sl.staff_id = st.id AND sl.location_id = $1
        JOIN staff_services ss ON ss.staff_id = st.id AND ss.service_id = $2
       WHERE st.organization_id = $3 AND st.is_active
-        AND ($4::uuid IS NULL OR st.id = $4::uuid)
+        AND ($4::bigint IS NULL OR st.id = $4::bigint)
       ORDER BY st.sort_order, st.display_name`,
     [q.locationId, q.serviceId, q.organizationId, q.staffId],
   );
@@ -134,7 +134,7 @@ export async function getAvailability(
             to_char(t.starts_at, 'HH24:MI') AS start_hm, to_char(t.ends_at, 'HH24:MI') AS end_hm
        FROM weekly_schedule ws
        JOIN shift_templates t ON t.id = ws.shift_template_id
-      WHERE ws.staff_id = ANY($1::uuid[]) AND ws.weekday = $2`,
+      WHERE ws.staff_id = ANY($1::bigint[]) AND ws.weekday = $2`,
     [staffIds, weekday],
   );
   const exceptionRes = await client.query<ExceptionRow>(
@@ -142,7 +142,7 @@ export async function getAvailability(
             to_char(t.starts_at, 'HH24:MI') AS start_hm, to_char(t.ends_at, 'HH24:MI') AS end_hm
        FROM schedule_exceptions se
        LEFT JOIN shift_templates t ON t.id = se.shift_template_id
-      WHERE se.staff_id = ANY($1::uuid[]) AND se.work_date = $2::date`,
+      WHERE se.staff_id = ANY($1::bigint[]) AND se.work_date = $2::date`,
     [staffIds, q.date],
   );
 
@@ -156,7 +156,7 @@ export async function getAvailability(
             floor(extract(epoch FROM lower(during)) * 1000)::bigint::text AS s,
             floor(extract(epoch FROM upper(during)) * 1000)::bigint::text AS e
        FROM time_off
-      WHERE staff_id = ANY($1::uuid[]) AND during && tstzrange($2::timestamptz, $3::timestamptz)`,
+      WHERE staff_id = ANY($1::bigint[]) AND during && tstzrange($2::timestamptz, $3::timestamptz)`,
     windowParams,
   );
 
@@ -166,7 +166,7 @@ export async function getAvailability(
             floor(extract(epoch FROM starts_at) * 1000)::bigint::text AS s,
             floor(extract(epoch FROM ends_at) * 1000)::bigint::text AS e
        FROM appointments
-      WHERE organization_id = $4 AND staff_id = ANY($1::uuid[])
+      WHERE organization_id = $4 AND staff_id = ANY($1::bigint[])
         AND status IN ('pending', 'confirmed')
         AND during && tstzrange($2::timestamptz, $3::timestamptz)`,
     [...windowParams, q.organizationId],

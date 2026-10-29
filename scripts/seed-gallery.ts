@@ -5,9 +5,9 @@ import pg from 'pg';
 import sharp from 'sharp';
 import { putObject } from '../src/lib/storage';
 
-const DEMO = '11111111-1111-4111-8111-111111111111';
-const SAJT2 = '11111111-1111-4111-8111-111111111112';
-const SAJT3 = '11111111-1111-4111-8111-111111111113';
+const DEMO = '1';
+const SAJT2 = '2';
+const SAJT3 = '3';
 
 interface Shot {
   mediaId: string;
@@ -24,8 +24,8 @@ interface Shot {
 
 const SHOTS: Shot[] = [
   {
-    mediaId: '77777777-7777-4777-8777-777777777711',
-    itemId: '88888888-8888-4888-8888-888888888811',
+    mediaId: '1',
+    itemId: '1',
     organizationId: DEMO,
     bg: '#8b1e3f',
     fg: '#ffffff',
@@ -36,8 +36,8 @@ const SHOTS: Shot[] = [
     sort: 0,
   },
   {
-    mediaId: '77777777-7777-4777-8777-777777777712',
-    itemId: '88888888-8888-4888-8888-888888888812',
+    mediaId: '2',
+    itemId: '2',
     organizationId: DEMO,
     bg: '#5c1429',
     fg: '#ffffff',
@@ -48,8 +48,8 @@ const SHOTS: Shot[] = [
     sort: 1,
   },
   {
-    mediaId: '77777777-7777-4777-8777-777777777713',
-    itemId: '88888888-8888-4888-8888-888888888813',
+    mediaId: '3',
+    itemId: '3',
     organizationId: DEMO,
     bg: '#2a0a14',
     fg: '#f4c7d3',
@@ -60,8 +60,8 @@ const SHOTS: Shot[] = [
     sort: 2,
   },
   {
-    mediaId: '77777777-7777-4777-8777-777777777721',
-    itemId: '88888888-8888-4888-8888-888888888821',
+    mediaId: '4',
+    itemId: '4',
     organizationId: SAJT2,
     bg: '#0f766e',
     fg: '#ffffff',
@@ -72,8 +72,8 @@ const SHOTS: Shot[] = [
     sort: 0,
   },
   {
-    mediaId: '77777777-7777-4777-8777-777777777722',
-    itemId: '88888888-8888-4888-8888-888888888822',
+    mediaId: '5',
+    itemId: '5',
     organizationId: SAJT2,
     bg: '#115e59',
     fg: '#ffffff',
@@ -84,8 +84,8 @@ const SHOTS: Shot[] = [
     sort: 1,
   },
   {
-    mediaId: '77777777-7777-4777-8777-777777777723',
-    itemId: '88888888-8888-4888-8888-888888888823',
+    mediaId: '6',
+    itemId: '6',
     organizationId: SAJT2,
     bg: '#134e4a',
     fg: '#ccfbf1',
@@ -96,8 +96,8 @@ const SHOTS: Shot[] = [
     sort: 2,
   },
   {
-    mediaId: '77777777-7777-4777-8777-777777777731',
-    itemId: '88888888-8888-4888-8888-888888888831',
+    mediaId: '7',
+    itemId: '7',
     organizationId: SAJT3,
     bg: '#7c3aed',
     fg: '#ffffff',
@@ -108,8 +108,8 @@ const SHOTS: Shot[] = [
     sort: 0,
   },
   {
-    mediaId: '77777777-7777-4777-8777-777777777732',
-    itemId: '88888888-8888-4888-8888-888888888832',
+    mediaId: '8',
+    itemId: '8',
     organizationId: SAJT3,
     bg: '#6d28d9',
     fg: '#ffffff',
@@ -120,8 +120,8 @@ const SHOTS: Shot[] = [
     sort: 1,
   },
   {
-    mediaId: '77777777-7777-4777-8777-777777777733',
-    itemId: '88888888-8888-4888-8888-888888888833',
+    mediaId: '9',
+    itemId: '9',
     organizationId: SAJT3,
     bg: '#5b21b6',
     fg: '#ede9fe',
@@ -191,6 +191,10 @@ async function main(): Promise<void> {
   try {
     await client.query('BEGIN');
     for (const shot of SHOTS) await upsertShot(client, shot);
+    await client.query(`SELECT setval(pg_get_serial_sequence('media', 'id'), (SELECT max(id) FROM media))`);
+    await client.query(
+      `SELECT setval(pg_get_serial_sequence('gallery_items', 'id'), (SELECT max(id) FROM gallery_items))`,
+    );
     await client.query('COMMIT');
     console.log(`Galerija: ${SHOTS.length} slika`);
   } catch (error) {

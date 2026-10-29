@@ -16,7 +16,8 @@ Isti izgled za sve salone. Tenant iz `Host` headera, nikad iz URL parametra.
 ## Pravila
 
 - Salon u statusu `draft`: sajt se vidi (pregled), zakazivanje i `GET /api/availability` su zabranjeni.
-- Gost: `pending` + email link. Ulogovani klijent: odmah `confirmed`, `client_user_id`.
+- Gost (bez naloga): ime, prezime, telefon i email; `pending` + email link. Ulogovani klijent:
+  ime i telefon se popunjavaju sa naloga, odmah `confirmed`, `client_user_id`.
 - Limit: 10 `POST /api/appointments` po IP-u na sat.
 - Schema.org `HairSalon` na svakoj stranici salona. Naslov npr. „Cenovnik · Demo Salon“.
 - Primarna boja iz `organizations.theme.primaryColor`; kontrast teksta kao u adminu.
@@ -27,7 +28,7 @@ Nije obavezan `demo.localhost`. Svaki salon se otvara na svom hostu:
 
 1. `npm run db:seed` (upisuje `localhost.rs`, `sajt2.rs`, `sajt3.rs`)
 2. `npm run hosts:dev` (PowerShell **kao Administrator**) — `127.0.0.1` u hosts fajl
-3. `npm run dev`, pa:
+3. `npm run dev` (`allowedDevOrigins` u `next.config.ts` da JS radi na tim domenima), pa:
    - http://localhost.rs:3000 — Demo Salon
    - http://sajt2.rs:3000 — Salon dva
    - http://sajt3.rs:3000 — Salon tri

@@ -12,7 +12,7 @@ export async function expirePendingAppointments(
     `UPDATE appointments
         SET status = 'cancelled_by_client', cancelled_at = now()
       WHERE status = 'pending' AND pending_expires_at < now()
-        AND ($1::uuid IS NULL OR organization_id = $1::uuid)`,
+        AND ($1::bigint IS NULL OR organization_id = $1::bigint)`,
     [organizationId],
   );
   return res.rowCount ?? 0;

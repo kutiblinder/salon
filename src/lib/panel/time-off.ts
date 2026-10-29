@@ -92,7 +92,7 @@ export async function loadTimeOff(
             lower(t.during) AS starts_at, upper(t.during) AS ends_at, t.note
        FROM time_off t
        JOIN staff s ON s.id = t.staff_id
-      WHERE s.organization_id = $1 AND t.staff_id = ANY($2::uuid[])
+      WHERE s.organization_id = $1 AND t.staff_id = ANY($2::bigint[])
         AND upper(t.during) > $3::timestamptz
       ORDER BY lower(t.during), s.sort_order, s.display_name`,
     [ctx.organizationId, staff.map((s) => s.id), new Date(fromMs).toISOString()],

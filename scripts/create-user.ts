@@ -3,14 +3,14 @@
  *
  *   npm run user:create '--' --platform-admin --email ti@primer.rs --name "Ime Prezime"
  *   npm run user:create '--' --org demo --role owner --email vlasnik@primer.rs --name "Vlasnik"
- *   npm run user:create '--' --org demo --role staff --email marko@primer.rs --name "Marko" --staff <staff-uuid>
- *   npm run user:create '--' --org demo --role manager --location <location-uuid> --email ... --name ...
+ *   npm run user:create '--' --org demo --role staff --email marko@primer.rs --name "Marko" --staff <staff-id>
+ *   npm run user:create '--' --org demo --role manager --location <location-id> --email ... --name ...
  *
  * '--' je pod navodnicima zbog PowerShell-a (inace ga proguta pre npm-a); u bash-u moze i bez.
  * Ako nalog vec postoji u tom prostoru, samo se dodaje uloga. Lozinka se generise i ispise
  * jednom (ili --password ...); korisnik je menja posle prijave.
  */
-import { randomBytes, randomUUID } from 'node:crypto';
+import { randomBytes } from 'node:crypto';
 import { parseArgs } from 'node:util';
 import pg from 'pg';
 import { hashPassword } from 'better-auth/crypto';
@@ -57,16 +57,16 @@ async function main(): Promise<void> {
     );
     let userId = existing.rows[0]?.id;
     if (!userId) {
-      userId = randomUUID();
       password = values.password ?? randomBytes(12).toString('base64url');
-      await client.query(
-        `INSERT INTO users (id, organization_id, email, full_name, email_verified) VALUES ($1, $2, $3, $4, true)`,
-        [userId, organizationId, email, name],
+      const inserted = await client.query<{ id: string }>(
+        `INSERT INTO users (organization_id, email, full_name, email_verified) VALUES ($1, $2, $3, true) RETURNING id`,
+        [organizationId, email, name],
       );
+      userId = inserted.rows[0].id;
       await client.query(
-        `INSERT INTO accounts (id, account_id, provider_id, user_id, organization_id, password)
-         VALUES ($1, $2::text, 'credential', $2::uuid, $3, $4)`,
-        [randomUUID(), userId, organizationId, await hashPassword(password)],
+        `INSERT INTO accounts (account_id, provider_id, user_id, organization_id, password)
+         VALUES ($1::text, 'credential', $1::bigint, $2, $3)`,
+        [userId, organizationId, await hashPassword(password)],
       );
     }
 

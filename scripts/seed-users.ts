@@ -2,24 +2,24 @@
  * Probni nalozi za razvoj. Lozinke su namerno jednostavne (samo lokalno).
  * Pokreće se iz `npm run db:seed`. Spisak: docs/dev-nalozi.md
  */
-import { randomUUID } from 'node:crypto';
 import pg from 'pg';
 import { hashPassword } from 'better-auth/crypto';
 
-const DEMO = '11111111-1111-4111-8111-111111111111';
-const SAJT2 = '11111111-1111-4111-8111-111111111112';
-const SAJT3 = '11111111-1111-4111-8111-111111111113';
-const MARKO = '44444444-4444-4444-8444-444444444441';
-const ANA = '44444444-4444-4444-8444-444444444443';
-const IVANA = '44444444-4444-4444-8444-444444444444';
+const DEMO = '1';
+const SAJT2 = '2';
+const SAJT3 = '3';
+const MARKO = '1';
+const ANA = '3';
+const IVANA = '4';
 
 interface SeedUser {
   email: string;
   name: string;
   password: string;
   organizationId: string | null;
-  role: 'admin' | 'owner' | 'staff';
+  role?: 'admin' | 'owner' | 'staff';
   staffId?: string;
+  phone?: string;
 }
 
 const USERS: SeedUser[] = [
@@ -33,6 +33,13 @@ const USERS: SeedUser[] = [
     role: 'staff',
     staffId: MARKO,
   },
+  {
+    email: 'musterija@localhost.rs',
+    name: 'Petar Petrović',
+    password: 'musterija',
+    organizationId: DEMO,
+    phone: '+381641111111',
+  },
   { email: 'vlasnik@sajt2.rs', name: 'Vlasnik Dva', password: 'vlasnik', organizationId: SAJT2, role: 'owner' },
   {
     email: 'zaposleni@sajt2.rs',
@@ -41,6 +48,13 @@ const USERS: SeedUser[] = [
     organizationId: SAJT2,
     role: 'staff',
     staffId: ANA,
+  },
+  {
+    email: 'musterija@sajt2.rs',
+    name: 'Mila Jovanović',
+    password: 'musterija',
+    organizationId: SAJT2,
+    phone: '+381642222222',
   },
   { email: 'vlasnik@sajt3.rs', name: 'Vlasnik Tri', password: 'vlasnik', organizationId: SAJT3, role: 'owner' },
   {
@@ -51,6 +65,13 @@ const USERS: SeedUser[] = [
     role: 'staff',
     staffId: IVANA,
   },
+  {
+    email: 'musterija@sajt3.rs',
+    name: 'Nikola Ilić',
+    password: 'musterija',
+    organizationId: SAJT3,
+    phone: '+381643333333',
+  },
 ];
 
 async function upsertUser(client: pg.Client, u: SeedUser): Promise<void> {
@@ -58,34 +79,41 @@ async function upsertUser(client: pg.Client, u: SeedUser): Promise<void> {
     'SELECT id FROM users WHERE email = $1 AND organization_id IS NOT DISTINCT FROM $2',
     [u.email, u.organizationId],
   );
-  const userId = existing.rows[0]?.id ?? randomUUID();
   const hash = await hashPassword(u.password);
+  let userId = existing.rows[0]?.id;
 
-  if (!existing.rows[0]) {
-    await client.query(
-      `INSERT INTO users (id, organization_id, email, full_name, email_verified, privacy_consent_at)
-       VALUES ($1, $2, $3, $4, true, now())`,
-      [userId, u.organizationId, u.email, u.name],
+  if (!userId) {
+    const inserted = await client.query<{ id: string }>(
+      `INSERT INTO users (organization_id, email, full_name, phone, email_verified, privacy_consent_at)
+       VALUES ($1, $2, $3, $4, true, now()) RETURNING id`,
+      [u.organizationId, u.email, u.name, u.phone ?? null],
     );
+    userId = inserted.rows[0].id;
     await client.query(
-      `INSERT INTO accounts (id, account_id, provider_id, user_id, organization_id, password)
-       VALUES ($1, $2::text, 'credential', $2::uuid, $3, $4)`,
-      [randomUUID(), userId, u.organizationId, hash],
+      `INSERT INTO accounts (account_id, provider_id, user_id, organization_id, password)
+       VALUES ($1::text, 'credential', $1::bigint, $2, $3)`,
+      [userId, u.organizationId, hash],
     );
   } else {
-    await client.query(`UPDATE users SET full_name = $2, email_verified = true WHERE id = $1`, [userId, u.name]);
+    await client.query(`UPDATE users SET full_name = $2, phone = $3, email_verified = true WHERE id = $1`, [
+      userId,
+      u.name,
+      u.phone ?? null,
+    ]);
     await client.query(
       `UPDATE accounts SET password = $2 WHERE user_id = $1 AND provider_id = 'credential'`,
       [userId, hash],
     );
   }
 
-  const scope = u.role === 'admin' ? 'platform' : 'organization';
-  await client.query(
-    `INSERT INTO memberships (user_id, role, scope, organization_id, location_id)
-     VALUES ($1, $2, $3, $4, NULL) ON CONFLICT DO NOTHING`,
-    [userId, u.role, scope, u.organizationId],
-  );
+  if (u.role) {
+    const scope = u.role === 'admin' ? 'platform' : 'organization';
+    await client.query(
+      `INSERT INTO memberships (user_id, role, scope, organization_id, location_id)
+       VALUES ($1, $2, $3, $4, NULL) ON CONFLICT DO NOTHING`,
+      [userId, u.role, scope, u.organizationId],
+    );
+  }
 
   if (u.staffId) {
     const linked = await client.query(

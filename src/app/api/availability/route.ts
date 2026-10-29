@@ -1,10 +1,10 @@
 import { withTenant } from '@/lib/db';
+import { isId } from '@/lib/ids';
 import { resolveTenantByHost } from '@/lib/tenant';
 import { getAvailability, isBookableDate } from '@/lib/availability/load';
 
 export const dynamic = 'force-dynamic';
 
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
 
 /**
@@ -18,7 +18,7 @@ export async function GET(request: Request) {
   const staffId = params.get('staffId');
   const date = params.get('date') ?? '';
 
-  if (!UUID.test(locationId) || !UUID.test(serviceId) || (staffId !== null && !UUID.test(staffId))) {
+  if (!isId(locationId) || !isId(serviceId) || (staffId !== null && !isId(staffId))) {
     return Response.json({ error: 'invalid_id' }, { status: 400 });
   }
   if (!DATE.test(date) || Number.isNaN(Date.parse(`${date}T00:00:00Z`))) {

@@ -1,4 +1,5 @@
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+import { isId } from '../ids';
+
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 /** Pocetak termina tacno kako ga vraca GET /api/availability (ISO, UTC). */
 const ISO_UTC = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2}(\.\d{1,3})?)?Z$/;
@@ -62,9 +63,9 @@ function parseBooking(
 ): ValidationResult<StaffBookingInput> {
   const staffId = b.staffId ?? null;
   if (
-    typeof b.locationId !== 'string' || !UUID.test(b.locationId) ||
-    typeof b.serviceId !== 'string' || !UUID.test(b.serviceId) ||
-    (staffId !== null && (typeof staffId !== 'string' || !UUID.test(staffId)))
+    typeof b.locationId !== 'string' || !isId(b.locationId) ||
+    typeof b.serviceId !== 'string' || !isId(b.serviceId) ||
+    (staffId !== null && (typeof staffId !== 'string' || !isId(staffId)))
   ) {
     return { ok: false, error: 'invalid_id' };
   }
@@ -118,22 +119,22 @@ export function parseStaffBooking(fields: Record<string, unknown>): ValidationRe
   return parseBooking(b, fields, { consentRequired: false, emailRequired: false });
 }
 
-/** Ulogovani klijent: isti slot kao gost, bez guest polja (ime/telefon sa naloga). */
+/** Ulogovani klijent: isti slot kao gost. Ime i telefon sa forme, ili sa naloga. */
 export function parseClientBooking(
   body: unknown,
-): ValidationResult<Omit<StaffBookingInput, 'guest'>> {
+  account: { name: string; phone: string | null; email: string },
+): ValidationResult<StaffBookingInput> {
   if (typeof body !== 'object' || body === null) return { ok: false, error: 'invalid_body' };
-  const b = { ...(body as Record<string, unknown>), staffId: (body as Record<string, unknown>).staffId ?? null };
-  const parsed = parseBooking(b, { name: 'klijent', phone: '+381641234567' }, { consentRequired: false, emailRequired: false });
-  if (!parsed.ok) return parsed;
-  return {
-    ok: true,
-    value: {
-      locationId: parsed.value.locationId,
-      serviceId: parsed.value.serviceId,
-      staffId: parsed.value.staffId,
-      startMs: parsed.value.startMs,
-      note: parsed.value.note,
+  const raw = body as Record<string, unknown>;
+  const g = (typeof raw.guest === 'object' && raw.guest !== null ? raw.guest : {}) as Record<string, unknown>;
+  const b = { ...raw, staffId: raw.staffId ?? null };
+  return parseBooking(
+    b,
+    {
+      name: typeof g.name === 'string' && g.name.trim() ? g.name : account.name,
+      phone: typeof g.phone === 'string' && g.phone.trim() ? g.phone : (account.phone ?? ''),
+      email: account.email,
     },
-  };
+    { consentRequired: false, emailRequired: false },
+  );
 }

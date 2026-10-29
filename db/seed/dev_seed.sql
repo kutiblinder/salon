@@ -1,4 +1,4 @@
--- Probni podaci za razvoj (fiksni UUID-ovi, bezbedno za ponovno pokretanje).
+-- Probni podaci za razvoj (fiksni ID-evi, bezbedno za ponovno pokretanje).
 -- Svaki salon na sopstvenom domenu (posle `npm run hosts:dev`):
 --   Demo Salon  -> http://localhost.rs:3000
 --   Salon dva   -> http://sajt2.rs:3000
@@ -8,177 +8,175 @@
 -- Nalozi i lozinke: docs/dev-nalozi.md (`npm run db:seed` pravi korisnike i galeriju)
 --
 -- Primer poziva (ponedeljak 2026-10-12, "Fade sisanje", bilo koji radnik):
---   /api/availability?locationId=22222222-2222-4222-8222-222222222222&serviceId=33333333-3333-4333-8333-333333333331&date=2026-10-12
+--   /api/availability?locationId=1&serviceId=1&date=2026-10-12
 
 BEGIN;
 
 INSERT INTO organizations (id, name, slug, status)
-VALUES ('11111111-1111-4111-8111-111111111111', 'Demo Salon', 'demo', 'published')
+VALUES (1, 'Demo Salon', 'demo', 'published')
 ON CONFLICT DO NOTHING;
 
 INSERT INTO locations (id, organization_id, name, address, city, phone, slot_step_min)
-VALUES ('22222222-2222-4222-8222-222222222222', '11111111-1111-4111-8111-111111111111',
-        'Zemun centar', 'Glavna 1', 'Zemun', '+381 11 000 000', 15)
+VALUES (1, 1, 'Zemun centar', 'Glavna 1', 'Zemun', '+381 11 000 000', 15)
 ON CONFLICT DO NOTHING;
 
 INSERT INTO location_hours (location_id, weekday, opens_at, closes_at)
-SELECT '22222222-2222-4222-8222-222222222222', d, '08:00', '22:00' FROM generate_series(0, 5) AS d
+SELECT 1, d, '08:00', '22:00' FROM generate_series(0, 5) AS d
 ON CONFLICT DO NOTHING;
 
 INSERT INTO services (id, organization_id, name, description) VALUES
-  ('33333333-3333-4333-8333-333333333331', '11111111-1111-4111-8111-111111111111', 'Fade šišanje', 'Fade sa mašinicom i makazama'),
-  ('33333333-3333-4333-8333-333333333332', '11111111-1111-4111-8111-111111111111', 'Klasično šišanje', 'Klasično šišanje makazama')
+  (1, 1, 'Fade šišanje', 'Fade sa mašinicom i makazama'),
+  (2, 1, 'Klasično šišanje', 'Klasično šišanje makazama')
 ON CONFLICT DO NOTHING;
 
 INSERT INTO location_services (location_id, service_id, price, duration_min, buffer_min) VALUES
-  ('22222222-2222-4222-8222-222222222222', '33333333-3333-4333-8333-333333333331', 1800, 60, 0),
-  ('22222222-2222-4222-8222-222222222222', '33333333-3333-4333-8333-333333333332', 1200, 30, 0)
+  (1, 1, 1800, 60, 0),
+  (1, 2, 1200, 30, 0)
 ON CONFLICT DO NOTHING;
 
 INSERT INTO staff (id, organization_id, display_name, title, bio) VALUES
-  ('44444444-4444-4444-8444-444444444441', '11111111-1111-4111-8111-111111111111', 'Marko', 'Barber', 'Fade i klasično šišanje.'),
-  ('44444444-4444-4444-8444-444444444442', '11111111-1111-4111-8111-111111111111', 'Jovana', 'Frizerka', 'Šišanje i fade (fade 75 min).')
+  (1, 1, 'Marko', 'Barber', 'Fade i klasično šišanje.'),
+  (2, 1, 'Jovana', 'Frizerka', 'Šišanje i fade (fade 75 min).')
 ON CONFLICT (id) DO UPDATE SET
   title = EXCLUDED.title,
   bio = COALESCE(staff.bio, EXCLUDED.bio);
 
 INSERT INTO staff_locations (staff_id, location_id) VALUES
-  ('44444444-4444-4444-8444-444444444441', '22222222-2222-4222-8222-222222222222'),
-  ('44444444-4444-4444-8444-444444444442', '22222222-2222-4222-8222-222222222222')
+  (1, 1),
+  (2, 1)
 ON CONFLICT DO NOTHING;
 
 -- Jovani fade traje 75 min (primer trajanja po zaposlenom)
 INSERT INTO staff_services (staff_id, service_id, duration_override_min) VALUES
-  ('44444444-4444-4444-8444-444444444441', '33333333-3333-4333-8333-333333333331', NULL),
-  ('44444444-4444-4444-8444-444444444441', '33333333-3333-4333-8333-333333333332', NULL),
-  ('44444444-4444-4444-8444-444444444442', '33333333-3333-4333-8333-333333333331', 75),
-  ('44444444-4444-4444-8444-444444444442', '33333333-3333-4333-8333-333333333332', NULL)
+  (1, 1, NULL),
+  (1, 2, NULL),
+  (2, 1, 75),
+  (2, 2, NULL)
 ON CONFLICT DO NOTHING;
 
 INSERT INTO shift_templates (id, location_id, name, starts_at, ends_at) VALUES
-  ('55555555-5555-4555-8555-555555555551', '22222222-2222-4222-8222-222222222222', 'Prva smena', '08:00', '15:00'),
-  ('55555555-5555-4555-8555-555555555552', '22222222-2222-4222-8222-222222222222', 'Druga smena', '15:00', '22:00'),
-  ('55555555-5555-4555-8555-555555555553', '22222222-2222-4222-8222-222222222222', 'Cela smena', '09:00', '17:00')
+  (1, 1, 'Prva smena', '08:00', '15:00'),
+  (2, 1, 'Druga smena', '15:00', '22:00'),
+  (3, 1, 'Cela smena', '09:00', '17:00')
 ON CONFLICT DO NOTHING;
 
 -- Marko: pon-pet prva smena, subota cela. Jovana: pon-pet druga smena.
 INSERT INTO weekly_schedule (staff_id, location_id, weekday, shift_template_id)
-SELECT '44444444-4444-4444-8444-444444444441', '22222222-2222-4222-8222-222222222222', d,
-       '55555555-5555-4555-8555-555555555551'
+SELECT 1, 1, d, 1
 FROM generate_series(0, 4) AS d
 ON CONFLICT DO NOTHING;
 
 INSERT INTO weekly_schedule (staff_id, location_id, weekday, shift_template_id) VALUES
-  ('44444444-4444-4444-8444-444444444441', '22222222-2222-4222-8222-222222222222', 5, '55555555-5555-4555-8555-555555555553')
+  (1, 1, 5, 3)
 ON CONFLICT DO NOTHING;
 
 INSERT INTO weekly_schedule (staff_id, location_id, weekday, shift_template_id)
-SELECT '44444444-4444-4444-8444-444444444442', '22222222-2222-4222-8222-222222222222', d,
-       '55555555-5555-4555-8555-555555555552'
+SELECT 2, 1, d, 2
 FROM generate_series(0, 4) AS d
 ON CONFLICT DO NOTHING;
 
 INSERT INTO site_content (organization_id, page, key, language, value, status) VALUES
-  ('11111111-1111-4111-8111-111111111111', 'home', 'hero_title', 'sr-Latn', '"Frizer Zemun"', 'published'),
-  ('11111111-1111-4111-8111-111111111111', 'home', 'hero_subtitle', 'sr-Latn', '"Šišanje, fade i nega brade u Zemunu."', 'published'),
-  ('11111111-1111-4111-8111-111111111111', 'home', 'intro', 'sr-Latn', '"Zakažite termin online. Isti nalog važi za sve naše objekte. Radimo ponedeljak–subota."', 'published'),
-  ('11111111-1111-4111-8111-111111111111', 'about', 'title', 'sr-Latn', '"O nama"', 'published'),
-  ('11111111-1111-4111-8111-111111111111', 'about', 'body', 'sr-Latn', '"Porodični frizerski salon u centru Zemuna. Radimo klasično šišanje, fade i negu brade. Tim: Marko i Jovana."', 'published'),
-  ('11111111-1111-4111-8111-111111111111', 'contact', 'note', 'sr-Latn', '"Parking ispred objekta. Pozovite ili zakažite online."', 'published')
+  (1, 'home', 'hero_title', 'sr-Latn', '"Frizer Zemun"', 'published'),
+  (1, 'home', 'hero_subtitle', 'sr-Latn', '"Šišanje, fade i nega brade u Zemunu."', 'published'),
+  (1, 'home', 'intro', 'sr-Latn', '"Zakažite termin online. Isti nalog važi za sve naše objekte. Radimo ponedeljak–subota."', 'published'),
+  (1, 'about', 'title', 'sr-Latn', '"O nama"', 'published'),
+  (1, 'about', 'body', 'sr-Latn', '"Porodični frizerski salon u centru Zemuna. Radimo klasično šišanje, fade i negu brade. Tim: Marko i Jovana."', 'published'),
+  (1, 'contact', 'note', 'sr-Latn', '"Parking ispred objekta. Pozovite ili zakažite online."', 'published')
 ON CONFLICT (organization_id, page, key, language, status) DO UPDATE SET value = EXCLUDED.value;
 
 -- Dva dodatna salona, svaki na svom domenu (sajt2.rs / sajt3.rs)
 INSERT INTO organizations (id, name, slug, status) VALUES
-  ('11111111-1111-4111-8111-111111111112', 'Salon dva', 'sajt2', 'published'),
-  ('11111111-1111-4111-8111-111111111113', 'Salon tri', 'sajt3', 'published')
+  (2, 'Salon dva', 'sajt2', 'published'),
+  (3, 'Salon tri', 'sajt3', 'published')
 ON CONFLICT DO NOTHING;
 
 INSERT INTO locations (id, organization_id, name, address, city, phone, slot_step_min) VALUES
-  ('22222222-2222-4222-8222-222222222223', '11111111-1111-4111-8111-111111111112',
-   'Novi Sad', 'Dunavska 2', 'Novi Sad', '+381 21 000 000', 15),
-  ('22222222-2222-4222-8222-222222222224', '11111111-1111-4111-8111-111111111113',
-   'Niš', 'Obrenovićeva 3', 'Niš', '+381 18 000 000', 15)
+  (2, 2, 'Novi Sad', 'Dunavska 2', 'Novi Sad', '+381 21 000 000', 15),
+  (3, 3, 'Niš', 'Obrenovićeva 3', 'Niš', '+381 18 000 000', 15)
 ON CONFLICT DO NOTHING;
 
 INSERT INTO location_hours (location_id, weekday, opens_at, closes_at)
 SELECT loc, d, '09:00', '17:00'
-FROM (VALUES
-  ('22222222-2222-4222-8222-222222222223'::uuid),
-  ('22222222-2222-4222-8222-222222222224'::uuid)
-) AS l(loc)
+FROM (VALUES (2), (3)) AS l(loc)
 CROSS JOIN generate_series(0, 4) AS d
 ON CONFLICT DO NOTHING;
 
 INSERT INTO services (id, organization_id, name, description) VALUES
-  ('33333333-3333-4333-8333-333333333333', '11111111-1111-4111-8111-111111111112', 'Šišanje', 'Klasično šišanje'),
-  ('33333333-3333-4333-8333-333333333335', '11111111-1111-4111-8111-111111111112', 'Brada', 'Korekcija i oblikovanje brade'),
-  ('33333333-3333-4333-8333-333333333334', '11111111-1111-4111-8111-111111111113', 'Manikir', 'Klasičan manikir'),
-  ('33333333-3333-4333-8333-333333333336', '11111111-1111-4111-8111-111111111113', 'Pedikir', 'Klasičan pedikir')
+  (3, 2, 'Šišanje', 'Klasično šišanje'),
+  (4, 2, 'Brada', 'Korekcija i oblikovanje brade'),
+  (5, 3, 'Manikir', 'Klasičan manikir'),
+  (6, 3, 'Pedikir', 'Klasičan pedikir')
 ON CONFLICT DO NOTHING;
 
 INSERT INTO location_services (location_id, service_id, price, duration_min, buffer_min) VALUES
-  ('22222222-2222-4222-8222-222222222223', '33333333-3333-4333-8333-333333333333', 1500, 45, 0),
-  ('22222222-2222-4222-8222-222222222223', '33333333-3333-4333-8333-333333333335', 800, 20, 0),
-  ('22222222-2222-4222-8222-222222222224', '33333333-3333-4333-8333-333333333334', 2000, 60, 0),
-  ('22222222-2222-4222-8222-222222222224', '33333333-3333-4333-8333-333333333336', 2500, 60, 0)
+  (2, 3, 1500, 45, 0),
+  (2, 4, 800, 20, 0),
+  (3, 5, 2000, 60, 0),
+  (3, 6, 2500, 60, 0)
 ON CONFLICT DO NOTHING;
 
 INSERT INTO staff (id, organization_id, display_name, title, bio) VALUES
-  ('44444444-4444-4444-8444-444444444443', '11111111-1111-4111-8111-111111111112', 'Ana', 'Frizerka', 'Šišanje i brada u Novom Sadu.'),
-  ('44444444-4444-4444-8444-444444444444', '11111111-1111-4111-8111-111111111113', 'Ivana', 'Manikir', 'Manikir i pedikir u Nišu.')
+  (3, 2, 'Ana', 'Frizerka', 'Šišanje i brada u Novom Sadu.'),
+  (4, 3, 'Ivana', 'Manikir', 'Manikir i pedikir u Nišu.')
 ON CONFLICT DO NOTHING;
 
 INSERT INTO staff_locations (staff_id, location_id) VALUES
-  ('44444444-4444-4444-8444-444444444443', '22222222-2222-4222-8222-222222222223'),
-  ('44444444-4444-4444-8444-444444444444', '22222222-2222-4222-8222-222222222224')
+  (3, 2),
+  (4, 3)
 ON CONFLICT DO NOTHING;
 
 INSERT INTO staff_services (staff_id, service_id, duration_override_min) VALUES
-  ('44444444-4444-4444-8444-444444444443', '33333333-3333-4333-8333-333333333333', NULL),
-  ('44444444-4444-4444-8444-444444444443', '33333333-3333-4333-8333-333333333335', NULL),
-  ('44444444-4444-4444-8444-444444444444', '33333333-3333-4333-8333-333333333334', NULL),
-  ('44444444-4444-4444-8444-444444444444', '33333333-3333-4333-8333-333333333336', NULL)
+  (3, 3, NULL),
+  (3, 4, NULL),
+  (4, 5, NULL),
+  (4, 6, NULL)
 ON CONFLICT DO NOTHING;
 
 INSERT INTO shift_templates (id, location_id, name, starts_at, ends_at) VALUES
-  ('55555555-5555-4555-8555-555555555554', '22222222-2222-4222-8222-222222222223', 'Dan', '09:00', '17:00'),
-  ('55555555-5555-4555-8555-555555555555', '22222222-2222-4222-8222-222222222224', 'Dan', '09:00', '17:00')
+  (4, 2, 'Dan', '09:00', '17:00'),
+  (5, 3, 'Dan', '09:00', '17:00')
 ON CONFLICT DO NOTHING;
 
 INSERT INTO weekly_schedule (staff_id, location_id, weekday, shift_template_id)
-SELECT '44444444-4444-4444-8444-444444444443', '22222222-2222-4222-8222-222222222223', d,
-       '55555555-5555-4555-8555-555555555554'
+SELECT 3, 2, d, 4
 FROM generate_series(0, 4) AS d
 ON CONFLICT DO NOTHING;
 
 INSERT INTO weekly_schedule (staff_id, location_id, weekday, shift_template_id)
-SELECT '44444444-4444-4444-8444-444444444444', '22222222-2222-4222-8222-222222222224', d,
-       '55555555-5555-4555-8555-555555555555'
+SELECT 4, 3, d, 5
 FROM generate_series(0, 4) AS d
 ON CONFLICT DO NOTHING;
 
-UPDATE organizations SET theme = '{"primaryColor":"#0f766e"}'::jsonb WHERE id = '11111111-1111-4111-8111-111111111112';
-UPDATE organizations SET theme = '{"primaryColor":"#7c3aed"}'::jsonb WHERE id = '11111111-1111-4111-8111-111111111113';
+UPDATE organizations SET theme = '{"primaryColor":"#0f766e"}'::jsonb WHERE id = 2;
+UPDATE organizations SET theme = '{"primaryColor":"#7c3aed"}'::jsonb WHERE id = 3;
 
 INSERT INTO site_content (organization_id, page, key, language, value, status) VALUES
-  ('11111111-1111-4111-8111-111111111112', 'home', 'hero_title', 'sr-Latn', '"Salon dva — Novi Sad"', 'published'),
-  ('11111111-1111-4111-8111-111111111112', 'home', 'hero_subtitle', 'sr-Latn', '"Šišanje i brada u Dunavskoj."', 'published'),
-  ('11111111-1111-4111-8111-111111111112', 'home', 'intro', 'sr-Latn', '"Zakažite online. Radimo ponedeljak–petak, 9–17h."', 'published'),
-  ('11111111-1111-4111-8111-111111111112', 'about', 'title', 'sr-Latn', '"O nama"', 'published'),
-  ('11111111-1111-4111-8111-111111111112', 'about', 'body', 'sr-Latn', '"Mali salon u centru Novog Sada. Ana radi šišanje i bradu."', 'published'),
-  ('11111111-1111-4111-8111-111111111112', 'contact', 'note', 'sr-Latn', '"Ulaz iz Dunavske. Zakažite online ili nas pozovite."', 'published'),
-  ('11111111-1111-4111-8111-111111111113', 'home', 'hero_title', 'sr-Latn', '"Salon tri — Niš"', 'published'),
-  ('11111111-1111-4111-8111-111111111113', 'home', 'hero_subtitle', 'sr-Latn', '"Manikir i pedikir u Obrenovićevoj."', 'published'),
-  ('11111111-1111-4111-8111-111111111113', 'home', 'intro', 'sr-Latn', '"Zakažite online. Radimo ponedeljak–petak, 9–17h."', 'published'),
-  ('11111111-1111-4111-8111-111111111113', 'about', 'title', 'sr-Latn', '"O nama"', 'published'),
-  ('11111111-1111-4111-8111-111111111113', 'about', 'body', 'sr-Latn', '"Salon za negu ruku i stopala u Nišu. Ivana radi manikir i pedikir."', 'published'),
-  ('11111111-1111-4111-8111-111111111113', 'contact', 'note', 'sr-Latn', '"Objekat je u pešačkoj zoni. Zakažite online."', 'published')
+  (2, 'home', 'hero_title', 'sr-Latn', '"Salon dva — Novi Sad"', 'published'),
+  (2, 'home', 'hero_subtitle', 'sr-Latn', '"Šišanje i brada u Dunavskoj."', 'published'),
+  (2, 'home', 'intro', 'sr-Latn', '"Zakažite online. Radimo ponedeljak–petak, 9–17h."', 'published'),
+  (2, 'about', 'title', 'sr-Latn', '"O nama"', 'published'),
+  (2, 'about', 'body', 'sr-Latn', '"Mali salon u centru Novog Sada. Ana radi šišanje i bradu."', 'published'),
+  (2, 'contact', 'note', 'sr-Latn', '"Ulaz iz Dunavske. Zakažite online ili nas pozovite."', 'published'),
+  (3, 'home', 'hero_title', 'sr-Latn', '"Salon tri — Niš"', 'published'),
+  (3, 'home', 'hero_subtitle', 'sr-Latn', '"Manikir i pedikir u Obrenovićevoj."', 'published'),
+  (3, 'home', 'intro', 'sr-Latn', '"Zakažite online. Radimo ponedeljak–petak, 9–17h."', 'published'),
+  (3, 'about', 'title', 'sr-Latn', '"O nama"', 'published'),
+  (3, 'about', 'body', 'sr-Latn', '"Salon za negu ruku i stopala u Nišu. Ivana radi manikir i pedikir."', 'published'),
+  (3, 'contact', 'note', 'sr-Latn', '"Objekat je u pešačkoj zoni. Zakažite online."', 'published')
 ON CONFLICT (organization_id, page, key, language, status) DO UPDATE SET value = EXCLUDED.value;
 
 INSERT INTO organization_domains (domain, organization_id, verified_at) VALUES
-  ('localhost.rs', '11111111-1111-4111-8111-111111111111', now()),
-  ('sajt2.rs', '11111111-1111-4111-8111-111111111112', now()),
-  ('sajt3.rs', '11111111-1111-4111-8111-111111111113', now())
+  ('localhost.rs', 1, now()),
+  ('sajt2.rs', 2, now()),
+  ('sajt3.rs', 3, now())
 ON CONFLICT DO NOTHING;
+
+-- Identity mora da krene posle eksplicitnih ID-eva, inace sledeci INSERT puca na 1, 2, 3.
+SELECT setval(pg_get_serial_sequence('organizations', 'id'), (SELECT max(id) FROM organizations));
+SELECT setval(pg_get_serial_sequence('locations', 'id'), (SELECT max(id) FROM locations));
+SELECT setval(pg_get_serial_sequence('services', 'id'), (SELECT max(id) FROM services));
+SELECT setval(pg_get_serial_sequence('staff', 'id'), (SELECT max(id) FROM staff));
+SELECT setval(pg_get_serial_sequence('shift_templates', 'id'), (SELECT max(id) FROM shift_templates));
+SELECT setval(pg_get_serial_sequence('site_content', 'id'), coalesce((SELECT max(id) FROM site_content), 1));
 
 COMMIT;

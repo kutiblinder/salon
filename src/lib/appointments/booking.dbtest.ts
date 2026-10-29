@@ -4,7 +4,7 @@
  */
 import { after, before, test } from 'node:test';
 import assert from 'node:assert/strict';
-import { randomUUID } from 'node:crypto';
+import { testId } from '../test-id';
 import { getPool, withTenant } from '../db';
 import { addDays, localDateOf, zonedTimeToUtcMs } from '../availability/time';
 import { getAvailability } from '../availability/load';
@@ -14,14 +14,14 @@ import { cancelByToken, confirmByToken, getAppointmentByToken } from './manage';
 import type { GuestBookingInput } from './validate';
 
 const TZ = 'Europe/Belgrade';
-const ORG = randomUUID();
-const OTHER_ORG = randomUUID();
-const LOC = randomUUID();
-const SERVICE = randomUUID();
-const ANA = randomUUID();
-const BOJAN = randomUUID();
-const CLIENT = randomUUID();
-const SHIFT = randomUUID();
+const ORG = testId();
+const OTHER_ORG = testId();
+const LOC = testId();
+const SERVICE = testId();
+const ANA = testId();
+const BOJAN = testId();
+const CLIENT = testId();
+const SHIFT = testId();
 const DATE = addDays(localDateOf(Date.now(), TZ), 7);
 const at = (hm: string) => zonedTimeToUtcMs(DATE, hm, TZ);
 
@@ -40,14 +40,14 @@ before(async () => {
       ('${ANA}', '${SERVICE}', NULL), ('${BOJAN}', '${SERVICE}', 60);
     INSERT INTO shift_templates (id, location_id, name, starts_at, ends_at) VALUES ('${SHIFT}', '${LOC}', 'Dan', '09:00', '17:00');
     INSERT INTO weekly_schedule (staff_id, location_id, weekday, shift_template_id)
-      SELECT s, '${LOC}', d, '${SHIFT}' FROM unnest(ARRAY['${ANA}', '${BOJAN}']::uuid[]) s, generate_series(0, 6) d;
+      SELECT s, '${LOC}', d, '${SHIFT}' FROM unnest(ARRAY['${ANA}', '${BOJAN}']::bigint[]) s, generate_series(0, 6) d;
     INSERT INTO users (id, organization_id, email, full_name) VALUES
       ('${CLIENT}', '${ORG}', 'klijent-${CLIENT.slice(0, 8)}@test.rs', 'Klijent');`;
   await getPool().query(sql);
 });
 
 after(async () => {
-  await getPool().query('DELETE FROM organizations WHERE id = ANY($1::uuid[])', [[ORG, OTHER_ORG]]);
+  await getPool().query('DELETE FROM organizations WHERE id = ANY($1::bigint[])', [[ORG, OTHER_ORG]]);
   await getPool().end();
 });
 

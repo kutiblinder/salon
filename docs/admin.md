@@ -41,3 +41,9 @@ kao korisnika. Prijava: nalog sa `organization_id` NULL i ulogom `admin` na plat
   `GET /api/tls-ask?domain=` pre izdavanja sertifikata (samo platforma, postojeci slug, ili proveren domen).
 - `www` i apex se tretiraju kao isti salon ako je jedan od njih u tabeli.
 - Lokalno: `npm run hosts:dev`, pa npr. http://localhost.rs:3000 (ne mora `demo.localhost`).
+
+## Logovi (`/admin/logovi`)
+
+- Pregled `audit_log` za salon u koji je admin usao (sesija, ne URL). Poslednjih 100 zapisa.
+- Ko, kada (`Europe/Belgrade`), sta (akcija na srpskom), objekat, staro/novo. Lozinke i tokeni se ne prikazuju.
+- Vlasnik salona ovo ne vidi (samo nalog platforme).

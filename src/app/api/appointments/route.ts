@@ -41,23 +41,14 @@ export async function POST(request: Request) {
   const proto = request.headers.get('x-forwarded-proto') ?? new URL(request.url).protocol.replace(':', '');
 
   if (asClient && session) {
-    const parsed = parseClientBooking(body);
+    const parsed = parseClientBooking(body, {
+      name: session.user.name,
+      phone: session.user.phone,
+      email: session.user.email,
+    });
     if (!parsed.ok) return Response.json({ error: parsed.error }, { status: 400 });
     const result = await withTenant(tenant.id, (client) =>
-      createClientAppointment(
-        client,
-        tenant.id,
-        {
-          ...parsed.value,
-          guest: {
-            name: session.user.name,
-            phone: session.user.phone ?? '',
-            email: session.user.email,
-          },
-        },
-        Date.now(),
-        session.user.id,
-      ),
+      createClientAppointment(client, tenant.id, parsed.value, Date.now(), session.user.id),
     );
     if (!result.ok) {
       if (result.error === 'not_found') return Response.json({ error: 'not_found' }, { status: 404 });

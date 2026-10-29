@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { headers } from 'next/headers';
 import { notFound } from 'next/navigation';
 import { withTenant } from '@/lib/db';
@@ -27,6 +28,20 @@ export default async function BookingPage({
   return (
     <main>
       <h1 className="text-2xl font-semibold">Zakazivanje</h1>
+      {session?.realm.kind === 'salon' ? (
+        <p className="mt-1 text-neutral-600">Ime i telefon su popunjeni sa vašeg naloga.</p>
+      ) : (
+        <p className="mt-1 text-neutral-600">
+          Možete zakazati i bez naloga: ime, prezime i telefon. Email služi za potvrdu termina.{' '}
+          <Link href="/prijava" className="underline">
+            Prijava
+          </Link>
+          {' · '}
+          <Link href="/registracija" className="underline">
+            Registracija
+          </Link>
+        </p>
+      )}
       {salon.status !== 'published' ? (
         <p className="mt-4 text-neutral-600">Zakazivanje je dostupno kad salon objavi sajt.</p>
       ) : catalog.locations.length === 0 || catalog.offers.length === 0 ? (
