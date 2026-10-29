@@ -3,9 +3,11 @@ import Link from 'next/link';
 import { headers } from 'next/headers';
 import { getPool, withTenant } from '@/lib/db';
 import { getCurrentSession } from '@/lib/auth/session';
+import { isSalonUnavailable } from '@/lib/auth/access';
 import { textOnPrimary } from '@/lib/admin/theme';
 import { resolveTenantByHost } from '@/lib/tenant';
 import { loadSiteLocations, loadSiteSalon } from '@/lib/site/load';
+import { SalonUnavailable } from '@/lib/site/unavailable';
 
 export const dynamic = 'force-dynamic';
 
@@ -20,6 +22,9 @@ const NAV = [
 export async function generateMetadata(): Promise<Metadata> {
   const tenant = await resolveTenantByHost((await headers()).get('host'));
   if (!tenant) return { title: 'Salon platforma' };
+  if (isSalonUnavailable(tenant.status)) {
+    return { title: { absolute: 'Sajt nije dostupan' }, robots: { index: false, follow: false } };
+  }
   const loc = await getPool().query<{ city: string | null }>(
     `SELECT city FROM locations WHERE organization_id = $1 AND is_active ORDER BY sort_order LIMIT 1`,
     [tenant.id],
@@ -37,6 +42,10 @@ export default async function SiteLayout({ children }: { children: React.ReactNo
   const tenant = await resolveTenantByHost(h.get('host'));
   if (!tenant) return children;
 
+  if (isSalonUnavailable(tenant.status)) {
+    return <SalonUnavailable />;
+  }
+
   const session = await getCurrentSession(h);
   const { salon, locations } = await withTenant(tenant.id, async (client) => ({
     salon: await loadSiteSalon(client, tenant.id),
@@ -48,7 +57,7 @@ export default async function SiteLayout({ children }: { children: React.ReactNo
   const onPrimary = textOnPrimary(primary) === 'white' ? '#ffffff' : '#171717';
   const jsonLd = {
     '@context': 'https://schema.org',
-    '@type': 'HairSalon',
+    '@type': salon.schemaType,
     name: salon.name,
     url: `${process.env.NODE_ENV === 'production' ? 'https' : 'http'}://${h.get('host')}`,
     address: locations[0]

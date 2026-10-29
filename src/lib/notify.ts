@@ -6,7 +6,7 @@ export interface GuestBookingEmail {
   startsAt: string;
   timezone: string;
   manageUrl: string;
-  pendingTtlMin: number;
+  requiresConfirm?: boolean;
 }
 
 export function formatLocalDateTime(iso: string, timezone: string): string {
@@ -38,14 +38,14 @@ async function deliverEmail(to: string, subject: string, text: string): Promise<
 }
 
 /**
- * Email gostu sa linkom za potvrdu/otkazivanje termina.
+ * Email gostu: potvrda+otkaz ako salon traži potvrdu, inače samo otkaz.
  * Kad je RESEND_API_KEY postavljen, šalje preko Resend API-ja (bez SDK-a).
  */
 export async function sendGuestBookingEmail(msg: GuestBookingEmail): Promise<void> {
   const when = formatLocalDateTime(msg.startsAt, msg.timezone);
-  const text = [
-    `${msg.salonName}: ${msg.serviceName} kod ${msg.staffName}, ${when}.`,
-    `Potvrdite ili otkažite u roku od ${msg.pendingTtlMin} min: ${msg.manageUrl}`,
-  ].join('\n');
+  const action = msg.requiresConfirm
+    ? `Potvrdite u roku od 60 min (inače se termin oslobađa) ili otkažite: ${msg.manageUrl}`
+    : `Termin je zakazan. Otkažite: ${msg.manageUrl}`;
+  const text = [`${msg.salonName}: ${msg.serviceName} kod ${msg.staffName}, ${when}.`, action].join('\n');
   await deliverEmail(msg.to, `Termin u ${msg.salonName}`, text);
 }

@@ -1,12 +1,31 @@
+import type { Metadata } from 'next';
 import Link from 'next/link';
+import { headers } from 'next/headers';
+import { isSalonUnavailable } from '@/lib/auth/access';
 import { requirePanel } from '@/lib/panel/context';
+import { resolveTenantByHost } from '@/lib/tenant';
+import { SalonUnavailable } from '@/lib/site/unavailable';
 import { PanelNav, type NavItem } from './panel-nav';
 
+export async function generateMetadata(): Promise<Metadata> {
+  const tenant = await resolveTenantByHost((await headers()).get('host'));
+  if (tenant && isSalonUnavailable(tenant.status)) {
+    return { title: { absolute: 'Sajt nije dostupan' }, robots: { index: false, follow: false } };
+  }
+  return { title: 'Panel salona' };
+}
+
 export default async function PanelLayout({ children }: { children: React.ReactNode }) {
+  const tenant = await resolveTenantByHost((await headers()).get('host'));
+  if (tenant && isSalonUnavailable(tenant.status)) {
+    return <SalonUnavailable />;
+  }
+
   const ctx = await requirePanel();
 
-  const items: NavItem[] = [{ href: '/panel', label: 'Pregled' }];
+  const items: NavItem[] = [];
   if (ctx.locationsFor('appointments.manage').length > 0) items.push({ href: '/panel/termini', label: 'Termini' });
+  else items.push({ href: '/panel', label: 'Pregled' });
   if (ctx.locationsFor('schedule.manage').length > 0) {
     items.push({ href: '/panel/smene', label: 'Smene' });
     items.push({ href: '/panel/odsustva', label: 'Odsustva' });

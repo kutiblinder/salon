@@ -21,36 +21,45 @@ Server `salon` je već dodat. Lozinka za Postgres je `POSTGRES_PASSWORD` iz `.en
 | Email | `admin@admin.rs` |
 | Lozinka | `admin` |
 
-Posle prijave izaberi salon (Demo / Salon dva / Salon tri).
+Posle prijave izaberi salon (Atelje Kosić / Zen Masaža / Bella Nails).
 
-## Demo Salon — http://localhost.rs:3000
+## Atelje Kosić (frizer) — http://ateljekosic.rs:3000
 
-Panel: http://localhost.rs:3000/panel
+Ili http://atelje.localhost:3000. Dva objekta: Zemun i Novi Beograd.
 
-| Uloga | Ime | Email | Lozinka |
-|---|---|---|---|
-| Vlasnik | Vlasnik Demo | `vlasnik@localhost.rs` | `vlasnik` |
-| Zaposleni | Marko | `zaposleni@localhost.rs` | `zaposleni` |
-| Mušterija | Petar Petrović | `musterija@localhost.rs` | `musterija` |
-
-## Salon dva — http://sajt2.rs:3000
-
-Panel: http://sajt2.rs:3000/panel
+Panel: http://ateljekosic.rs:3000/panel
 
 | Uloga | Ime | Email | Lozinka |
 |---|---|---|---|
-| Vlasnik | Vlasnik Dva | `vlasnik@sajt2.rs` | `vlasnik` |
-| Zaposleni | Ana | `zaposleni@sajt2.rs` | `zaposleni` |
-| Mušterija | Mila Jovanović | `musterija@sajt2.rs` | `musterija` |
+| Vlasnik | Milan Kosić | `vlasnik@ateljekosic.rs` | `vlasnik` |
+| Zaposleni | Marko Kosić | `zaposleni@ateljekosic.rs` | `zaposleni` |
+| Zaposleni | Jovana Kosić | `jovana@ateljekosic.rs` | `zaposleni` |
+| Mušterija | Petar Petrović | `musterija@ateljekosic.rs` | `musterija` |
 
-## Salon tri — http://sajt3.rs:3000
+## Zen Masaža — http://zenmasaza.rs:3000
 
-Panel: http://sajt3.rs:3000/panel
+Ili http://zen.localhost:3000. Objekat na Vračaru (Njegoševa).
+
+Panel: http://zenmasaza.rs:3000/panel
 
 | Uloga | Ime | Email | Lozinka |
 |---|---|---|---|
-| Vlasnik | Vlasnik Tri | `vlasnik@sajt3.rs` | `vlasnik` |
-| Zaposleni | Ivana | `zaposleni@sajt3.rs` | `zaposleni` |
-| Mušterija | Nikola Ilić | `musterija@sajt3.rs` | `musterija` |
+| Vlasnik | Jelena Simić | `vlasnik@zenmasaza.rs` | `vlasnik` |
+| Zaposleni | Ana Simić | `zaposleni@zenmasaza.rs` | `zaposleni` |
+| Zaposleni | Nemanja Ilić | `nemanja@zenmasaza.rs` | `zaposleni` |
+| Mušterija | Mila Jovanović | `musterija@zenmasaza.rs` | `musterija` |
+
+## Bella Nails (manikir / pedikir) — http://bellanails.rs:3000
+
+Ili http://bella.localhost:3000. Objekat u Starom gradu. **Gost mora da potvrdi termin emailom** (rok 1 sat).
+
+Panel: http://bellanails.rs:3000/panel
+
+| Uloga | Ime | Email | Lozinka |
+|---|---|---|---|
+| Vlasnik | Bella Petrović | `vlasnik@bellanails.rs` | `vlasnik` |
+| Zaposleni | Ivana Petrović | `zaposleni@bellanails.rs` | `zaposleni` |
+| Zaposleni | Milica Jovanović | `milica@bellanails.rs` | `zaposleni` |
+| Mušterija | Nikola Ilić | `musterija@bellanails.rs` | `musterija` |
 
 Nalog sa jednog sajta ne važi na drugom. Admin se prijavljuje samo na `localhost:3000/admin`, ne na sajtu salona.

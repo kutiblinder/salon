@@ -104,16 +104,17 @@ npm run dev
 
 Otvori:
 
-- http://demo.localhost:3000 — sajt probnog salona (`*.localhost` radi u Chrome/Edge/Firefox);
+- http://ateljekosic.rs:3000 — Atelje Kosić (`npm run hosts:dev`; radi i atelje.localhost:3000);
   `/prijava`, `/registracija`, `/nalog`, `/panel`
+- http://zenmasaza.rs:3000 — Zen Masaža; http://bellanails.rs:3000 — Bella Nails
 - http://localhost:3000/admin — admin platforme (domen platforme; nalog iz `user:create --platform-admin`)
 - http://localhost:3000/api/health — treba `{"status":"ok","db":"up"}`
 - Slobodni termini (Fade šišanje, bilo koji radnik; zameni datum budućim radnim danom):
-  http://demo.localhost:3000/api/availability?locationId=1&serviceId=1&date=2026-11-02
+  http://ateljekosic.rs:3000/api/availability?locationId=1&serviceId=1&date=2026-11-02
 
 Ako je datum u prošlosti ili dalje od 90 dana, lista termina je prazna (ponedeljak–subota ima termine, nedelja nema).
 
-Zakazivanje gosta i link za potvrdu/otkazivanje: vidi [`docs/zakazivanje.md`](docs/zakazivanje.md).
+Zakazivanje gosta i link za otkazivanje: vidi [`docs/zakazivanje.md`](docs/zakazivanje.md).
 
 ## Komande
 
@@ -125,7 +126,7 @@ Zakazivanje gosta i link za potvrdu/otkazivanje: vidi [`docs/zakazivanje.md`](do
 | `npm run typecheck` | provera TypeScript tipova |
 | `npm run db:migrate` | primeni nove SQL migracije iz `db/migrations` |
 | `npm run db:seed` | ubaci probne podatke (`db/seed/dev_seed.sql`) |
-| `npm run jobs:expire-pending` | otkaži nepotvrđene gost-termine kojima je istekao rok (u produkciji cron) |
+| `npm run jobs:expire-pending` | otkaži stare `pending` gost-termine kojima je istekao rok (u produkciji cron) |
 | `npm run user:create '--' ...` | napravi nalog admina platforme, vlasnika, menadžera ili zaposlenog |
 | `docker compose stop` | zaustavi bazu (podaci ostaju) |
 | `docker compose down -v` | obriši bazu i podatke (čist početak), posle toga ponovo `up -d` i `db:migrate` |
@@ -144,7 +145,7 @@ salon/
 │   ├── app/                        Next.js stranice i API rute
 │   └── lib/
 │       ├── availability/           algoritam slobodnih termina (+ testovi)
-│       ├── appointments/           zakazivanje, potvrda/otkazivanje tokenom, istek
+│       ├── appointments/           zakazivanje, otkazivanje tokenom, istek pending redova
 │       ├── auth/                   Better Auth, nalozi po salonu, can() dozvole
 │       ├── audit.ts                audit log
 │       ├── notify.ts               obaveštenja (za sada samo log u razvoju)
@@ -173,7 +174,7 @@ Posle prvog `npm install` commit-uj i `package-lock.json`.
 - **Port 5432 zauzet:** u `.env` stavi `POSTGRES_PORT=5433` i isti port u `DATABASE_URL`.
 - **`db:migrate` kaže da `.env` ne postoji / DATABASE_URL nije podešen:** napravi `.env` iz `.env.example`.
 - **`password authentication failed`:** lozinka u `DATABASE_URL` ne odgovara `POSTGRES_PASSWORD`. Ako si menjao lozinku posle prvog pokretanja baze: `docker compose down -v`, pa ponovo.
-- **`demo.localhost` ne otvara stranu:** koristi Chrome, Edge ili Firefox (goli `http://localhost:3000` je domen platforme, ne salona).
+- **Salon na `.rs` domenu ne otvara stranu:** pokreni `npm run hosts:dev` kao Administrator. `*.localhost` (npr. `atelje.localhost`) radi u Chrome/Edge/Firefox bez hosts fajla. Goli `http://localhost:3000` je domen platforme, ne salona.
 - **`npm install` visi ili javlja `unable to verify the first certificate`:** antivirus (npr. AVG/Avast) skenira HTTPS svojim sertifikatom, kome Node ne veruje. Izvezi taj sertifikat i reci Node-u da mu veruje (jednom, PowerShell):
   ```powershell
   $c = Get-ChildItem Cert:\LocalMachine\Root | Where-Object Subject -match 'AVG|Avast' | Select-Object -First 1

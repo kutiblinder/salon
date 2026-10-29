@@ -9,6 +9,7 @@ import { PanelError, type PanelContext, type PanelLocation } from './core';
 export interface DayAppointment {
   id: string;
   staffId: string;
+  staffName: string;
   startsAt: Date;
   endsAt: Date;
   status: AppointmentStatus;
@@ -77,6 +78,7 @@ export async function loadDayAppointments(
   const res = await client.query<{
     id: string;
     staff_id: string;
+    staff_name: string;
     starts_at: Date;
     ends_at: Date;
     status: AppointmentStatus;
@@ -89,13 +91,14 @@ export async function loadDayAppointments(
     client_note: string | null;
     created_by_user_id: string | null;
   }>(
-    `SELECT a.id, a.staff_id, a.starts_at, a.ends_at, a.status, a.service_name_snapshot,
-            a.duration_snapshot_min, a.price_snapshot::text AS price,
+    `SELECT a.id, a.staff_id, st.display_name AS staff_name, a.starts_at, a.ends_at, a.status,
+            a.service_name_snapshot, a.duration_snapshot_min, a.price_snapshot::text AS price,
             coalesce(u.full_name, a.guest_name) AS client_name,
             coalesce(u.phone, a.guest_phone) AS client_phone,
             coalesce(u.email, a.guest_email)::text AS client_email,
             a.client_note, a.created_by_user_id
        FROM appointments a
+       JOIN staff st ON st.id = a.staff_id AND st.organization_id = a.organization_id
        LEFT JOIN users u ON u.id = a.client_user_id AND u.organization_id = a.organization_id
       WHERE a.organization_id = $1 AND a.location_id = $2
         AND a.starts_at >= $3::timestamptz AND a.starts_at < $4::timestamptz
@@ -110,6 +113,7 @@ export async function loadDayAppointments(
       return {
         id: r.id,
         staffId: r.staff_id,
+        staffName: r.staff_name,
         startsAt: r.starts_at,
         endsAt: r.ends_at,
         status: r.status,

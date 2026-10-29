@@ -1,4 +1,7 @@
+import { APIError } from 'better-auth/api';
+import { getPool } from '../db';
 import { getAuth, refreshCustomAuthHosts } from './auth';
+import { loginDeniedReason } from './access';
 import { resolveRealmByHost, runInRealm, type Realm } from './realm';
 
 export interface CurrentUser {
@@ -26,24 +29,42 @@ export async function getCurrentSession(headers: Headers): Promise<CurrentSessio
   const realm = await resolveRealmByHost(headers.get('host'));
   if (!realm) return null;
   await refreshCustomAuthHosts();
-  const result = await runInRealm(realm, () => getAuth().api.getSession({ headers }));
-  if (!result) return null;
+  try {
+    const result = await runInRealm(realm, () => getAuth().api.getSession({ headers }));
+    if (!result) return null;
 
-  const { user, session } = result;
-  const organizationId = (user.organizationId as string | null | undefined) ?? null;
-  // Dodatna provera pored filtera u adapteru
-  if (organizationId !== (realm.kind === 'salon' ? realm.organizationId : null)) return null;
+    const { user, session } = result;
+    const organizationId = (user.organizationId as string | null | undefined) ?? null;
+    // Dodatna provera pored filtera u adapteru
+    if (organizationId !== (realm.kind === 'salon' ? realm.organizationId : null)) return null;
 
-  return {
-    realm,
-    sessionId: session.id,
-    activeOrganizationId: (session.activeOrganizationId as string | null | undefined) ?? null,
-    user: {
-      id: user.id,
-      name: user.name,
-      email: user.email,
-      phone: (user.phone as string | null | undefined) ?? null,
-      organizationId,
-    },
-  };
+    if (realm.kind === 'salon') {
+      const client = await getPool().connect();
+      try {
+        const denied = await loginDeniedReason(client, {
+          organizationId: realm.organizationId,
+          userId: String(user.id),
+        });
+        if (denied) return null;
+      } finally {
+        client.release();
+      }
+    }
+
+    return {
+      realm,
+      sessionId: session.id,
+      activeOrganizationId: (session.activeOrganizationId as string | null | undefined) ?? null,
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        phone: (user.phone as string | null | undefined) ?? null,
+        organizationId,
+      },
+    };
+  } catch (error) {
+    if (error instanceof APIError) return null;
+    throw error;
+  }
 }

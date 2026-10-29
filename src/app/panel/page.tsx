@@ -1,3 +1,4 @@
+import { redirect } from 'next/navigation';
 import { PERMISSIONS } from '@/lib/auth/permissions';
 import { requirePanel } from '@/lib/panel/context';
 
@@ -8,6 +9,7 @@ const ROLE_LABELS: Record<string, string> = { owner: 'Vlasnik', manager: 'MenadÅ
 /** Pregled: uloge i dozvole prijavljenog naloga. */
 export default async function PanelPage() {
   const ctx = await requirePanel();
+  if (ctx.locationsFor('appointments.manage').length > 0) redirect('/panel/termini');
   const { actor, locations } = ctx;
 
   const locationName = (id: string | null) => locations.find((l) => l.id === id)?.name ?? '';

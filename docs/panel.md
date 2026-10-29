@@ -19,8 +19,10 @@ Panel je na domenu salona (`/panel`), samo za naloge tog salona koji imaju clans
 ## Termini (`/panel/termini`)
 
 - Dnevni prikaz po lokaciji, kolone po radniku (na telefonu jedna ispod druge).
+  Zaposleni vidi samo svoje. Vlasnik/menadžer vidi kod koga je termin i može da filtrira
+  po zaposlenom (`?radnik=`). Prijava zaposlenog/vlasnika ide na `/panel` → termini.
 - Prelazi statusa (`src/lib/appointments/status.ts`):
-  - `pending -> confirmed` (salon potvrdi umesto gosta);
+  - `pending -> confirmed` (dugme „Potvrdi rezervaciju“, samo za stare `pending` redove; novi gosti su odmah potvrđeni);
   - `pending/confirmed -> cancelled_by_salon`;
   - `confirmed -> completed / no_show` tek kad je termin poceo.
   Zavrseni i otkazani termini se ne menjaju.
@@ -60,13 +62,16 @@ Panel je na domenu salona (`/panel`), samo za naloge tog salona koji imaju clans
 
 ## Zaposleni (`/panel/zaposleni`)
 
-- Profil (`staff`): ime, titula, opis, redosled, aktivan. Slika (`photo_url`) nije u ovom koraku.
+- Profil (`staff`): ime, titula, opis, redosled, aktivan. Izmena imena menja i ime naloga.
+  Slika (`photo_url`) nije u ovom koraku.
   Bar jedna lokacija. Usluge opcione; prazno trajanje = trajanje sa `location_services`.
 - Menja nalog sa `staff.manage` (vlasnik, ili admin platforme u salonu). Menadzer i zaposleni
   nemaju ovu dozvolu.
 - Skidanje lokacije brise `weekly_schedule` i `schedule_exceptions` vezane za tu lokaciju
   (slobodan dan bez lokacije ostaje).
-- Deaktivacija (`is_active = false`) umesto brisanja: ne vidi se za zakazivanje, nalog ostaje.
+- Deaktivacija (`is_active = false`): ne vidi se za zakazivanje, profil ostaje, ne može da se
+  prijavi (sesije se brišu). Brisanje na detalju: odbija se ako ima buduće termine; profil i
+  nalog za prijavu se uklanjaju. Admin platforme isto sa `/admin/zaposleni`.
 - **Nalog za prijavu**: ako email vec postoji u tom salonu, veze se (dodaje se `staff`
   clanstvo, `staff.user_id`); inace se pravi `users` + `accounts` kao `user:create`.
   Lozinka se prikaze jednom, nikad ne ide u audit log. Isti nalog ne moze na dva profila

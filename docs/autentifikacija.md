@@ -10,6 +10,8 @@
   menadžer i vlasnik sa `salon.rs` ne postoje na `salon2.rs`. Isti email na drugom salonu je drugi nalog
   sa drugom lozinkom. Salon može imati više objekata (lokacija); klijent salona zakazuje u svim.
 - **Svi korisnici salona se prijavljuju na domenu salona** (`/prijava`; panel `/panel`).
+  Neaktivan salon (`organizations.status = inactive`) nema prijavu. Neaktivan zaposleni
+  (`staff.is_active = false`) ne može da se prijavi; vlasnik/menadžer i dalje može.
 - **Vlasnik projekta (admin) ima jedan nalog platforme**, prijava samo na domenu platforme (`/admin`),
   bira salon u koji ulazi; saloni ga ne vide kao korisnika.
 
@@ -38,15 +40,16 @@
 - **Klijent** se registruje sam na sajtu salona: ime, email, telefon (normalizuje se u `+381...`),
   lozinka i obavezna saglasnost (`users.privacy_consent_at`). Email se za sada ne potvrđuje
   (nema email provajdera).
-- **Na domenu platforme nema registracije.** Admin, vlasnici, menadžeri i zaposleni dobijaju nalog
-  skriptom (lozinka se generiše i ispiše jednom):
+- **Na domenu platforme nema registracije.** Vlasnike, menadžere i zaposlene admin dodaje u
+  `/admin/nalozi` (kad uđe u salon). Nalog platforme i skripte i dalje:
+
   ```powershell
   npm run user:create '--' --platform-admin --email ti@primer.rs --name "Ime Prezime"
   npm run user:create '--' --org demo --role owner --email vlasnik@primer.rs --name "Vlasnik"
   npm run user:create '--' --org demo --role staff --email marko@primer.rs --name "Marko" --staff <staff-id>
   npm run user:create '--' --org demo --role manager --location <location-id> --email ... --name ...
   ```
-  `'--'` je pod navodnicima zbog PowerShell-a. Kasnije: pozivnice iz panela vlasnika (korak 4).
+  `'--'` je pod navodnicima zbog PowerShell-a. Vlasnik u panelu i dalje veže nalog zaposlenom (`/panel/zaposleni`).
 
 ## Dozvole: `can()`
 
@@ -69,7 +72,7 @@ Već se upisuju: pravljenje naloga skriptom (`user.create`) i ulazak/izlazak adm
 
 ## Lokalno
 
-- Domen platforme: `http://localhost:3000` (`/admin`). Salon: `http://demo.localhost:3000` (`/prijava`).
+- Domen platforme: `http://localhost:3000` (`/admin`). Salon: npr. `http://ateljekosic.rs:3000` (`/prijava`).
   Prečica `DEV_TENANT_SLUG` (goli localhost prikazuje demo salon) je uklonjena, jer je goli localhost
   sada domen platforme.
 - `.env` mora imati `BETTER_AUTH_SECRET` (vidi `.env.example`).

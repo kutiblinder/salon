@@ -1,66 +1,24 @@
 'use server';
 
 import { refresh } from 'next/cache';
+import { redirect } from 'next/navigation';
 import { runPanelAction, type ActionResult } from '@/lib/panel/context';
 import { isUuid } from '@/lib/panel/schedule';
 import {
   createStaff,
   createStaffLogin,
-  parseDurationOverride,
   parseEmail,
-  parseIdList,
-  parseOptionalText,
-  parseSortOrder,
-  parseStaffName,
+  parseStaffProfileForm,
   updateStaff,
+  deleteStaff,
 } from '@/lib/panel/staff';
-import type { CreateLoginResult, StaffServiceAssignment } from '@/lib/panel/staff-types';
+import type { CreateLoginResult } from '@/lib/panel/staff-types';
 
 export type FormState = ActionResult<{ message: string; id?: string }> | null;
 export type LoginFormState = ActionResult<CreateLoginResult> | null;
 
-function parseServices(formData: FormData): StaffServiceAssignment[] | null {
-  const ids = parseIdList(formData.getAll('serviceId'));
-  if (!ids) return null;
-  const services: StaffServiceAssignment[] = [];
-  for (const serviceId of ids) {
-    const duration = parseDurationOverride(formData.get(`duration_${serviceId}`));
-    if (duration === undefined) return null;
-    services.push({ serviceId, durationOverrideMin: duration });
-  }
-  return services;
-}
-
-type ParsedProfile =
-  | { error: string }
-  | {
-      name: string;
-      title: string | null;
-      bio: string | null;
-      sortOrder: number;
-      locationIds: string[];
-      services: StaffServiceAssignment[];
-    };
-
-function parseProfile(formData: FormData): ParsedProfile {
-  const name = parseStaffName(formData.get('name'));
-  const title = parseOptionalText(formData.get('title'), 80);
-  const bio = parseOptionalText(formData.get('bio'), 500);
-  const sortOrder = parseSortOrder(formData.get('sortOrder'));
-  const locationIds = parseIdList(formData.getAll('locationId'));
-  const services = parseServices(formData);
-  if (!name) return { error: 'Unesite ime (do 80 karaktera).' };
-  if (title === undefined) return { error: 'Titula je predugačka.' };
-  if (bio === undefined) return { error: 'Opis je predugačak.' };
-  if (sortOrder === null) return { error: 'Redosled mora biti nula ili pozitivan broj.' };
-  if (!locationIds) return { error: 'Neispravan objekat.' };
-  if (locationIds.length === 0) return { error: 'Izaberite bar jedan objekat.' };
-  if (!services) return { error: 'Trajanje usluge mora biti ceo broj minuta, ili prazno.' };
-  return { name, title, bio, sortOrder, locationIds, services };
-}
-
 export async function createStaffAction(_prev: FormState, formData: FormData): Promise<FormState> {
-  const parsed = parseProfile(formData);
+  const parsed = parseStaffProfileForm(formData);
   if ('error' in parsed) return { ok: false, error: parsed.error };
 
   const result = await runPanelAction(async (client, ctx) =>
@@ -80,7 +38,7 @@ export async function createStaffAction(_prev: FormState, formData: FormData): P
 export async function updateStaffAction(_prev: FormState, formData: FormData): Promise<FormState> {
   const staffId = String(formData.get('staffId') ?? '');
   if (!isUuid(staffId)) return { ok: false, error: 'Neispravan zahtev.' };
-  const parsed = parseProfile(formData);
+  const parsed = parseStaffProfileForm(formData);
   if ('error' in parsed) return { ok: false, error: parsed.error };
 
   const result = await runPanelAction(async (client, ctx) => {
@@ -114,4 +72,15 @@ export async function createLoginAction(_prev: LoginFormState, formData: FormDat
   }
 
   return runPanelAction(async (client, ctx) => createStaffLogin(client, ctx, { staffId, email, password }));
+}
+
+export async function deleteStaffAction(_prev: FormState, formData: FormData): Promise<FormState> {
+  const staffId = String(formData.get('staffId') ?? '');
+  if (!isUuid(staffId)) return { ok: false, error: 'Neispravan zahtev.' };
+  const result = await runPanelAction(async (client, ctx) => {
+    await deleteStaff(client, ctx, staffId);
+    return { message: 'Zaposleni je obrisan.' };
+  });
+  if (!result.ok) return result;
+  redirect('/panel/zaposleni');
 }

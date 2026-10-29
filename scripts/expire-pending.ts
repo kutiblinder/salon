@@ -1,5 +1,5 @@
 /**
- * Pozadinski posao: nepotvrdjene gost-termine sa isteklim rokom prebacuje u otkazane.
+ * Pozadinski posao: stare pending gost-termine sa isteklim rokom prebacuje u otkazane.
  * Pokretanje: npm run jobs:expire-pending (u produkciji cron, npr. svaki minut).
  * Mora da radi ulogom koja zaobilazi RLS (vlasnik tabela), jer obradjuje sve salone.
  */

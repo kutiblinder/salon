@@ -22,7 +22,7 @@ export function isPanelStatusAction(value: unknown): value is PanelStatusAction 
 
 /**
  * Dozvoljeni prelazi statusa iz panela:
- * - pending -> confirmed (salon potvrdjuje umesto gosta, npr. posle poziva)
+ * - pending -> confirmed (stari pending redovi; novi gosti su odmah potvrdjeni)
  * - pending/confirmed -> cancelled_by_salon
  * - confirmed -> completed / no_show, tek kad je termin poceo
  * Otkazani, zavrseni i "nije dosao" termini se vise ne menjaju.

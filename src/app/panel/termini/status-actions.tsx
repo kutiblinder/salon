@@ -5,7 +5,7 @@ import type { PanelStatusAction } from '@/lib/appointments/status';
 import { changeAppointmentStatus } from './actions';
 
 const LABELS: Record<PanelStatusAction, string> = {
-  confirmed: 'Potvrdi',
+  confirmed: 'Potvrdi rezervaciju',
   cancelled_by_salon: 'Otkaži',
   completed: 'Završen',
   no_show: 'Nije došao',

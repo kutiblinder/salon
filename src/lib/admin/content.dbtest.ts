@@ -60,8 +60,10 @@ test('admin u salonu snima tekst, boju i status; audit i istorija', async () => 
   await asAdmin(ORG, (client, ctx) =>
     saveContent(client, ctx, {
       name: 'Novi naziv',
+      slug: `ac-${ORG.slice(0, 8)}`,
       status: 'published',
       primaryColor: '#112233',
+      guestConfirmEmail: false,
       values: { 'home.hero_title': 'Frizer Zemun', 'about.body': 'Prva verzija' },
     }),
   );
@@ -75,8 +77,10 @@ test('admin u salonu snima tekst, boju i status; audit i istorija', async () => 
   await asAdmin(ORG, (client, ctx) =>
     saveContent(client, ctx, {
       name: 'Novi naziv',
+      slug: `ac-${ORG.slice(0, 8)}`,
       status: 'published',
       primaryColor: '#112233',
+      guestConfirmEmail: false,
       values: { 'home.hero_title': 'Frizer Zemun 2', 'about.body': 'Prva verzija' },
     }),
   );
@@ -104,6 +108,46 @@ test('admin u drugom salonu ne vidi sadrzaj prvog', async () => {
   const bundle = await asAdmin(OTHER, (client, ctx) => loadContent(client, ctx));
   assert.equal(bundle.values['home.hero_title'], '');
   assert.equal(bundle.salon.id, OTHER);
+});
+
+test('neaktivan salon briše sesije tog salona', async () => {
+  const sessionId = testId();
+  await getPool().query(
+    `INSERT INTO sessions (id, token, user_id, organization_id, expires_at)
+     VALUES ($1, $2, $3, $4, now() + interval '1 day')`,
+    [sessionId, `tok-${sessionId}`, OWNER_USER, ORG],
+  );
+  await asAdmin(ORG, (client, ctx) =>
+    saveContent(client, ctx, {
+      name: 'Novi naziv',
+      slug: `novo-${ORG.slice(0, 8)}`,
+      status: 'inactive',
+      primaryColor: '#112233',
+      guestConfirmEmail: false,
+      values: { 'home.hero_title': 'Frizer Zemun 2', 'about.body': 'Prva verzija' },
+    }),
+  );
+  const sess = await getPool().query(`SELECT 1 FROM sessions WHERE id = $1`, [sessionId]);
+  assert.equal(sess.rowCount, 0);
+  const org = await getPool().query<{ status: string; slug: string }>(`SELECT status, slug FROM organizations WHERE id = $1`, [ORG]);
+  assert.equal(org.rows[0].status, 'inactive');
+  assert.equal(org.rows[0].slug, `novo-${ORG.slice(0, 8)}`);
+});
+
+test('zauzet slug se odbija', async () => {
+  await assert.rejects(
+    asAdmin(ORG, (client, ctx) =>
+      saveContent(client, ctx, {
+        name: 'Novi naziv',
+        slug: `ot-${OTHER.slice(0, 8)}`,
+        status: 'inactive',
+        primaryColor: '#112233',
+        guestConfirmEmail: false,
+        values: { 'home.hero_title': 'Frizer Zemun 2', 'about.body': 'Prva verzija' },
+      }),
+    ),
+    (e: unknown) => e instanceof AdminError && /poddomen/i.test((e as Error).message),
+  );
 });
 
 test('nalog salona nije admin platforme', async () => {

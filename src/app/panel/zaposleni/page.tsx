@@ -34,17 +34,20 @@ export default async function StaffListPage() {
             <li key={s.id}>
               <Link
                 href={`/panel/zaposleni/${s.id}`}
-                className="block rounded-lg border border-neutral-200 bg-white px-3 py-3 hover:border-neutral-400"
+                className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-neutral-200 bg-white px-3 py-3 hover:border-neutral-400"
               >
-                <p className="font-medium">
-                  {s.name}
-                  {s.title ? <span className="font-normal text-neutral-600"> · {s.title}</span> : null}
-                  {!s.isActive && <span className="ml-2 text-sm font-normal text-neutral-500">neaktivan</span>}
-                </p>
-                <p className="mt-0.5 text-sm text-neutral-600">
-                  {s.locationNames.join(', ') || 'bez objekta'}
-                  {s.email ? ` · ${s.email}` : ' · nema nalog'}
-                </p>
+                <div>
+                  <p className="font-medium">
+                    {s.name}
+                    {s.title ? <span className="font-normal text-neutral-600"> · {s.title}</span> : null}
+                    {!s.isActive && <span className="ml-2 text-sm font-normal text-neutral-500">neaktivan</span>}
+                  </p>
+                  <p className="mt-0.5 text-sm text-neutral-600">
+                    {s.locationNames.join(', ') || 'bez objekta'}
+                    {s.email ? ` · ${s.email}` : ' · nema nalog'}
+                  </p>
+                </div>
+                <span className="text-sm font-medium text-neutral-700 underline">Uredi</span>
               </Link>
             </li>
           ))}

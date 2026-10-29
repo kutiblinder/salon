@@ -83,7 +83,7 @@ export async function getAppointmentByToken(
 
 export type ManageResult = { ok: true } | { ok: false; error: 'not_found' | 'not_allowed' };
 
-/** Gost potvrdjuje termin linkom iz emaila (samo dok 'pending' nije istekao). */
+/** Stari pending: gost potvrdjuje termin linkom (samo dok nije istekao). Novi gosti su vec confirmed. */
 export async function confirmByToken(
   client: PoolClient,
   organizationId: string,

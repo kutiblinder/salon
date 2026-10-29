@@ -25,7 +25,7 @@ function validDate(value: string | undefined): string | null {
 export default async function AppointmentsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ lokacija?: string; datum?: string }>;
+  searchParams: Promise<{ lokacija?: string; datum?: string; radnik?: string }>;
 }) {
   const ctx = await requirePanel();
   const params = await searchParams;
@@ -46,13 +46,23 @@ export default async function AppointmentsPage({
 
   const allowAnyStaff = ctx.canAll('appointments.manage', location.id);
   const bookableStaff = staff.filter((s) => ctx.can('appointments.manage', { locationId: location.id, staffId: s.id }));
+  const staffFilter = bookableStaff.find((s) => s.id === params.radnik)?.id ?? '';
+  const visibleStaff = staffFilter ? bookableStaff.filter((s) => s.id === staffFilter) : bookableStaff;
+  const showStaffName = visibleStaff.length > 1 || Boolean(staffFilter);
   // Kolone po radniku: svi koje nalog vidi + radnici koji vise nisu na lokaciji a imaju termin
-  const columns = bookableStaff.map((s) => ({ ...s, items: appointments.filter((a) => a.staffId === s.id) }));
-  const orphan = appointments.filter((a) => !bookableStaff.some((s) => s.id === a.staffId));
+  const columns = visibleStaff.map((s) => ({ ...s, items: appointments.filter((a) => a.staffId === s.id) }));
+  const orphan = appointments.filter(
+    (a) => !staffFilter && !bookableStaff.some((s) => s.id === a.staffId),
+  );
   if (orphan.length > 0) columns.push({ id: 'other', name: 'Ostali', items: orphan });
 
-  const href = (d: string) => `/panel/termini?lokacija=${location.id}&datum=${d}`;
-  const active = appointments.filter((a) => a.status === 'pending' || a.status === 'confirmed').length;
+  const href = (d: string) => {
+    const q = new URLSearchParams({ lokacija: location.id, datum: d });
+    if (staffFilter) q.set('radnik', staffFilter);
+    return `/panel/termini?${q}`;
+  };
+  const visibleAppointments = staffFilter ? appointments.filter((a) => a.staffId === staffFilter) : appointments;
+  const active = visibleAppointments.filter((a) => a.status === 'pending' || a.status === 'confirmed').length;
 
   return (
     <main>
@@ -64,7 +74,7 @@ export default async function AppointmentsPage({
             {date === today && ' (danas)'}
           </p>
         </div>
-        <form className="flex flex-wrap items-end gap-2" action="/panel/termini">
+        <form className="flex flex-wrap items-end gap-2" action="/panel/termini" method="get">
           {locations.length > 1 ? (
             <select name="lokacija" defaultValue={location.id} className="rounded-md border border-neutral-300 px-3 py-2">
               {locations.map((l) => (
@@ -77,6 +87,16 @@ export default async function AppointmentsPage({
             <input type="hidden" name="lokacija" value={location.id} />
           )}
           <input type="date" name="datum" defaultValue={date} className="rounded-md border border-neutral-300 px-3 py-2" />
+          {bookableStaff.length > 1 && (
+            <select name="radnik" defaultValue={staffFilter} className="rounded-md border border-neutral-300 px-3 py-2">
+              <option value="">Svi zaposleni</option>
+              {bookableStaff.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.name}
+                </option>
+              ))}
+            </select>
+          )}
           <button type="submit" className="rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm font-medium">
             Prikaži
           </button>
@@ -110,7 +130,13 @@ export default async function AppointmentsPage({
             ) : (
               <ul className="mt-2 space-y-3">
                 {col.items.map((a) => (
-                  <AppointmentCard key={a.id} appointment={a} timezone={location.timezone} nowMs={nowMs} />
+                  <AppointmentCard
+                    key={a.id}
+                    appointment={a}
+                    timezone={location.timezone}
+                    nowMs={nowMs}
+                    showStaffName={showStaffName}
+                  />
                 ))}
               </ul>
             )}
@@ -136,7 +162,17 @@ export default async function AppointmentsPage({
   );
 }
 
-function AppointmentCard({ appointment: a, timezone, nowMs }: { appointment: DayAppointment; timezone: string; nowMs: number }) {
+function AppointmentCard({
+  appointment: a,
+  timezone,
+  nowMs,
+  showStaffName,
+}: {
+  appointment: DayAppointment;
+  timezone: string;
+  nowMs: number;
+  showStaffName: boolean;
+}) {
   const inactive = a.status !== 'pending' && a.status !== 'confirmed';
   return (
     <li className={`rounded-lg border border-neutral-200 bg-white p-4 ${inactive ? 'opacity-70' : ''}`}>
@@ -149,6 +185,7 @@ function AppointmentCard({ appointment: a, timezone, nowMs }: { appointment: Day
         </span>
       </div>
       <p className="mt-1">
+        {showStaffName ? `kod ${a.staffName} · ` : ''}
         {a.serviceName} · {a.durationMin} min · {formatPrice(a.price)}
       </p>
       <p className="mt-2 font-medium">{a.clientName}</p>
@@ -159,6 +196,11 @@ function AppointmentCard({ appointment: a, timezone, nowMs }: { appointment: Day
       )}
       {a.clientNote && <p className="mt-1 text-sm text-neutral-600">Napomena: {a.clientNote}</p>}
       {a.enteredBySalon && <p className="mt-1 text-xs text-neutral-500">Uneo salon</p>}
+      {a.status === 'pending' && (
+        <p className="mt-2 text-sm text-amber-900">
+          Gost još nije potvrdio emailom. Ako ne potvrdi u roku od sat vremena, termin se oslobađa.
+        </p>
+      )}
       <StatusActions appointmentId={a.id} actions={availableActions(a.status, a.startsAt.getTime(), nowMs)} />
     </li>
   );

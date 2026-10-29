@@ -10,7 +10,7 @@ export default function PrivacyPage() {
       </p>
       <p>
         Podaci ostaju u salonu u kojem si zakazao/la. Drugi saloni na ovoj platformi ih ne vide. Koriste se za
-        potvrdu i otkazivanje termina i, ako je uključeno, za obaveštenja emailom.
+        otkazivanje termina i, ako je uključeno, za obaveštenja emailom.
       </p>
       <p>
         Gost-termin možeš da otkažeš linkom iz poruke, bez naloga. Nalog možeš da zatražiš da se obriše tako što

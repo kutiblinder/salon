@@ -17,8 +17,9 @@ export default async function HomePage() {
       <main className="mx-auto max-w-2xl p-8">
         <h1 className="text-3xl font-semibold">Salon platforma</h1>
         <p className="mt-4 text-neutral-600">
-          Nijedan salon nije izabran za ovaj domen. Za razvoj otvori <code>http://demo.localhost:3000</code> (posle{' '}
-          <code>npm run db:seed</code>).
+          Nijedan salon nije izabran za ovaj domen. Za razvoj otvori{' '}
+          <code>http://ateljekosic.rs:3000</code> (posle <code>npm run db:seed</code> i{' '}
+          <code>npm run hosts:dev</code>).
         </p>
         <p className="mt-4 text-sm text-neutral-600">
           <Link href="/admin" className="underline">

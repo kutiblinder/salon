@@ -13,13 +13,13 @@ export default async function SignInPage() {
   const realm = await resolveRealmByHost(h.get('host'));
   if (!realm) redirect('/');
   if (realm.kind === 'platform') redirect('/admin/prijava');
-  if (await getCurrentSession(h)) redirect('/nalog');
+  if (await getCurrentSession(h)) redirect('/panel');
 
   return (
     <main className="mx-auto max-w-md p-6">
       <p className="text-sm text-neutral-500">{realm.tenant.name}</p>
       <h1 className="mt-1 text-2xl font-semibold">Prijava</h1>
-      <SignInForm redirectTo="/nalog" />
+      <SignInForm redirectTo="/panel" />
       <p className="mt-6 text-sm text-neutral-600">
         Nemate nalog?{' '}
         <Link href="/registracija" className="font-medium underline">

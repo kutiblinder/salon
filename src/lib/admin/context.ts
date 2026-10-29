@@ -5,6 +5,7 @@ import { cache } from 'react';
 import { isPlatformAdmin, loadActor } from '../auth/actor';
 import { getCurrentSession } from '../auth/session';
 import { getPool, withTenant } from '../db';
+import { UserFacingError } from '../user-error';
 import { AdminError, loadAdminContext, type ActionResult, type AdminContext, type PlatformSession } from './core';
 
 export { AdminError, type ActionResult, type AdminContext } from './core';
@@ -59,7 +60,35 @@ export async function runAdminAction<T>(fn: (client: PoolClient, ctx: AdminConte
     });
     return { ok: true, data };
   } catch (error) {
-    if (error instanceof AdminError) return { ok: false, error: error.message };
+    if (error instanceof UserFacingError) return { ok: false, error: error.message };
     throw error;
+  }
+}
+
+/**
+ * Radnja na nivou platforme (npr. novi salon), bez ulaska u postojeći salon.
+ * Transakcija + provera da je nalog admin platforme.
+ */
+export async function runPlatformAction<T>(
+  fn: (client: PoolClient, session: PlatformSession) => Promise<T>,
+): Promise<ActionResult<T>> {
+  const session = await platformSession();
+  if (!session) return { ok: false, error: 'Niste prijavljeni.' };
+  const client = await getPool().connect();
+  try {
+    await client.query('BEGIN');
+    if (!isPlatformAdmin(await loadActor(client, session))) {
+      await client.query('ROLLBACK');
+      return { ok: false, error: 'Nemate pristup admin panelu.' };
+    }
+    const data = await fn(client, session);
+    await client.query('COMMIT');
+    return { ok: true, data };
+  } catch (error) {
+    await client.query('ROLLBACK');
+    if (error instanceof UserFacingError) return { ok: false, error: error.message };
+    throw error;
+  } finally {
+    client.release();
   }
 }

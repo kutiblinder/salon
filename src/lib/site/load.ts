@@ -1,6 +1,7 @@
 import type { PoolClient } from 'pg';
 import { CONTENT_FIELDS, CONTENT_LANGUAGE, fieldId, findContentField } from '../admin/content-types';
 import { parseHexColor } from '../admin/theme';
+import { bookableLocations } from './booking';
 import type { BookingCatalog, SiteGalleryItem, SiteLocation, SiteOffer, SiteSalon, SiteStaff } from './types';
 
 export type { BookingCatalog, SiteGalleryItem, SiteLocation, SiteOffer, SiteSalon, SiteStaff } from './types';
@@ -13,20 +14,37 @@ function jsonbText(value: unknown): string {
   return '';
 }
 
+const SCHEMA_TYPES = new Set(['HairSalon', 'DaySpa', 'NailSalon']);
+
+function schemaTypeOf(theme: { schemaType?: unknown }): SiteSalon['schemaType'] {
+  return typeof theme.schemaType === 'string' && SCHEMA_TYPES.has(theme.schemaType)
+    ? (theme.schemaType as SiteSalon['schemaType'])
+    : 'HairSalon';
+}
+
 export async function loadSiteSalon(client: PoolClient, organizationId: string): Promise<SiteSalon | null> {
-  const res = await client.query<{ id: string; name: string; slug: string; status: 'draft' | 'published'; theme: unknown }>(
-    `SELECT id, name, slug, status, theme FROM organizations WHERE id = $1`,
-    [organizationId],
-  );
+  const res = await client.query<{
+    id: string;
+    name: string;
+    slug: string;
+    status: 'draft' | 'published' | 'inactive';
+    theme: unknown;
+    guest_confirm_email: boolean;
+  }>(`SELECT id, name, slug, status, theme, guest_confirm_email FROM organizations WHERE id = $1`, [organizationId]);
   const row = res.rows[0];
   if (!row) return null;
-  const theme = row.theme && typeof row.theme === 'object' && !Array.isArray(row.theme) ? (row.theme as { primaryColor?: unknown }) : {};
+  const theme =
+    row.theme && typeof row.theme === 'object' && !Array.isArray(row.theme)
+      ? (row.theme as { primaryColor?: unknown; schemaType?: unknown })
+      : {};
   return {
     id: row.id,
     name: row.name,
     slug: row.slug,
     status: row.status,
     primaryColor: parseHexColor(theme.primaryColor),
+    guestConfirmEmail: row.guest_confirm_email,
+    schemaType: schemaTypeOf(theme),
   };
 }
 
@@ -143,7 +161,7 @@ export async function loadBookingCatalog(client: PoolClient, organizationId: str
     [organizationId],
   );
   return {
-    locations: locations.rows,
+    locations: bookableLocations(locations.rows, offers),
     offers,
     staff: staff.rows.map((r) => ({
       id: r.id,

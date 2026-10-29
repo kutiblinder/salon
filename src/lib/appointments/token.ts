@@ -1,6 +1,6 @@
 import { createHash, randomBytes } from 'node:crypto';
 
-/** Token iz linka za potvrdu/otkazivanje (256 bita, base64url). */
+/** Token iz linka za otkazivanje (256 bita, base64url). */
 export function newManageToken(): { token: string; hash: string } {
   const token = randomBytes(32).toString('base64url');
   return { token, hash: hashManageToken(token) };

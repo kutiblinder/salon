@@ -32,7 +32,9 @@ export default async function BookingPage({
         <p className="mt-1 text-neutral-600">Ime i telefon su popunjeni sa vašeg naloga.</p>
       ) : (
         <p className="mt-1 text-neutral-600">
-          Možete zakazati i bez naloga: ime, prezime i telefon. Email služi za potvrdu termina.{' '}
+          {salon.guestConfirmEmail
+            ? 'Možete zakazati i bez naloga. Na email stiže link: potvrdite u roku od sat vremena ili se termin oslobađa. '
+            : 'Možete zakazati i bez naloga: ime, prezime i telefon. Email služi za obaveštenje i otkazivanje. '}
           <Link href="/prijava" className="underline">
             Prijava
           </Link>
@@ -42,7 +44,9 @@ export default async function BookingPage({
           </Link>
         </p>
       )}
-      {salon.status !== 'published' ? (
+      {salon.status === 'inactive' ? (
+        <p className="mt-4 text-neutral-600">Ovaj salon trenutno ne prima zakazivanja.</p>
+      ) : salon.status !== 'published' ? (
         <p className="mt-4 text-neutral-600">Zakazivanje je dostupno kad salon objavi sajt.</p>
       ) : catalog.locations.length === 0 || catalog.offers.length === 0 ? (
         <p className="mt-4 text-neutral-600">Trenutno nema usluga za zakazivanje.</p>
@@ -52,6 +56,7 @@ export default async function BookingPage({
             catalog={catalog}
             initialLocationId={q.locationId}
             initialServiceId={q.serviceId}
+            guestConfirmEmail={salon.guestConfirmEmail}
             client={
               session?.realm.kind === 'salon'
                 ? { name: session.user.name, email: session.user.email, phone: session.user.phone }

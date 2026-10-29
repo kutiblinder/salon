@@ -9,8 +9,11 @@ const DEMO = '1';
 const SAJT2 = '2';
 const SAJT3 = '3';
 const MARKO = '1';
+const JOVANA = '2';
 const ANA = '3';
 const IVANA = '4';
+const NEMANJA = '5';
+const MILICA = '6';
 
 interface SeedUser {
   email: string;
@@ -24,49 +27,73 @@ interface SeedUser {
 
 const USERS: SeedUser[] = [
   { email: 'admin@admin.rs', name: 'Admin', password: 'admin', organizationId: null, role: 'admin' },
-  { email: 'vlasnik@localhost.rs', name: 'Vlasnik Demo', password: 'vlasnik', organizationId: DEMO, role: 'owner' },
+  { email: 'vlasnik@ateljekosic.rs', name: 'Milan Kosić', password: 'vlasnik', organizationId: DEMO, role: 'owner' },
   {
-    email: 'zaposleni@localhost.rs',
-    name: 'Marko',
+    email: 'zaposleni@ateljekosic.rs',
+    name: 'Marko Kosić',
     password: 'zaposleni',
     organizationId: DEMO,
     role: 'staff',
     staffId: MARKO,
   },
   {
-    email: 'musterija@localhost.rs',
+    email: 'jovana@ateljekosic.rs',
+    name: 'Jovana Kosić',
+    password: 'zaposleni',
+    organizationId: DEMO,
+    role: 'staff',
+    staffId: JOVANA,
+  },
+  {
+    email: 'musterija@ateljekosic.rs',
     name: 'Petar Petrović',
     password: 'musterija',
     organizationId: DEMO,
     phone: '+381641111111',
   },
-  { email: 'vlasnik@sajt2.rs', name: 'Vlasnik Dva', password: 'vlasnik', organizationId: SAJT2, role: 'owner' },
+  { email: 'vlasnik@zenmasaza.rs', name: 'Jelena Simić', password: 'vlasnik', organizationId: SAJT2, role: 'owner' },
   {
-    email: 'zaposleni@sajt2.rs',
-    name: 'Ana',
+    email: 'zaposleni@zenmasaza.rs',
+    name: 'Ana Simić',
     password: 'zaposleni',
     organizationId: SAJT2,
     role: 'staff',
     staffId: ANA,
   },
   {
-    email: 'musterija@sajt2.rs',
+    email: 'nemanja@zenmasaza.rs',
+    name: 'Nemanja Ilić',
+    password: 'zaposleni',
+    organizationId: SAJT2,
+    role: 'staff',
+    staffId: NEMANJA,
+  },
+  {
+    email: 'musterija@zenmasaza.rs',
     name: 'Mila Jovanović',
     password: 'musterija',
     organizationId: SAJT2,
     phone: '+381642222222',
   },
-  { email: 'vlasnik@sajt3.rs', name: 'Vlasnik Tri', password: 'vlasnik', organizationId: SAJT3, role: 'owner' },
+  { email: 'vlasnik@bellanails.rs', name: 'Bella Petrović', password: 'vlasnik', organizationId: SAJT3, role: 'owner' },
   {
-    email: 'zaposleni@sajt3.rs',
-    name: 'Ivana',
+    email: 'zaposleni@bellanails.rs',
+    name: 'Ivana Petrović',
     password: 'zaposleni',
     organizationId: SAJT3,
     role: 'staff',
     staffId: IVANA,
   },
   {
-    email: 'musterija@sajt3.rs',
+    email: 'milica@bellanails.rs',
+    name: 'Milica Jovanović',
+    password: 'zaposleni',
+    organizationId: SAJT3,
+    role: 'staff',
+    staffId: MILICA,
+  },
+  {
+    email: 'musterija@bellanails.rs',
     name: 'Nikola Ilić',
     password: 'musterija',
     organizationId: SAJT3,

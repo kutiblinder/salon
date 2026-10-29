@@ -3,29 +3,37 @@
 import { useRouter } from 'next/navigation';
 import { startTransition, useActionState, useEffect } from 'react';
 import type { OrgService, StaffDetail } from '@/lib/panel/staff-types';
-import { createStaffAction, updateStaffAction, type FormState } from './actions';
 
 const inputClass = 'mt-1 block w-full rounded-md border border-neutral-300 px-3 py-2 text-base';
+
+type StaffFormState = { ok: true; data: { message: string; id?: string } } | { ok: false; error: string } | null;
+type StaffFormAction = (prev: StaffFormState, formData: FormData) => Promise<StaffFormState>;
 
 export function StaffForm({
   locations,
   services,
   staff,
+  createAction,
+  updateAction,
+  afterCreatePath,
 }: {
   locations: { id: string; name: string }[];
   services: OrgService[];
   staff?: StaffDetail;
+  createAction: StaffFormAction;
+  updateAction: StaffFormAction;
+  afterCreatePath: string;
 }) {
   const router = useRouter();
-  const action = staff ? updateStaffAction : createStaffAction;
-  const [state, formAction, pending] = useActionState<FormState, FormData>(action, null);
+  const action = staff ? updateAction : createAction;
+  const [state, formAction, pending] = useActionState<StaffFormState, FormData>(action, null);
   const assignedLocations = new Set(staff?.locationIds ?? (locations.length === 1 ? locations.map((l) => l.id) : []));
 
   useEffect(() => {
     if (!staff && state?.ok && state.data.id) {
-      router.push(`/panel/zaposleni/${state.data.id}`);
+      router.push(`${afterCreatePath}/${state.data.id}`);
     }
-  }, [staff, state, router]);
+  }, [staff, state, router, afterCreatePath]);
   const assignedServices = new Map((staff?.services ?? []).map((s) => [s.serviceId, s.durationOverrideMin]));
 
   return (
@@ -62,7 +70,7 @@ export function StaffForm({
       {staff && (
         <label className="flex items-center gap-2 text-sm font-medium">
           <input type="checkbox" name="isActive" defaultChecked={staff.isActive} className="size-4" />
-          Aktivan (vidi se na sajtu i može da prima termine)
+          Aktivan (vidi se na sajtu, prima termine i može da se prijavi)
         </label>
       )}
 

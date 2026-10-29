@@ -1,9 +1,13 @@
+export type SiteSchemaType = 'HairSalon' | 'DaySpa' | 'NailSalon';
+
 export interface SiteSalon {
   id: string;
   name: string;
   slug: string;
-  status: 'draft' | 'published';
+  status: 'draft' | 'published' | 'inactive';
   primaryColor: string | null;
+  guestConfirmEmail: boolean;
+  schemaType: SiteSchemaType;
 }
 
 export interface SiteLocation {

@@ -36,12 +36,16 @@ export function findContentField(page: string, key: string): ContentField | unde
   return CONTENT_FIELDS.find((f) => f.page === page && f.key === key);
 }
 
+export type PublishStatus = 'draft' | 'published' | 'inactive';
+
 export interface SalonSettings {
   id: string;
   name: string;
   slug: string;
-  status: 'draft' | 'published';
+  status: PublishStatus;
   primaryColor: string | null;
+  /** Gost mora da potvrdi termin email linkom (rok 1 sat). */
+  guestConfirmEmail: boolean;
 }
 
 export interface ContentBundle {

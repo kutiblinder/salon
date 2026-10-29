@@ -3,7 +3,10 @@ import { redirect } from 'next/navigation';
 import type { PoolClient } from 'pg';
 import { cache } from 'react';
 import { withTenant } from '../db';
+import { isSalonUnavailable } from '../auth/access';
 import { getCurrentSession } from '../auth/session';
+import { resolveTenantByHost } from '../tenant';
+import { UserFacingError } from '../user-error';
 import { PanelError, loadPanelContext, type ActionResult, type PanelContext, type SalonSession } from './core';
 
 export { PanelError, type ActionResult, type PanelContext, type PanelLocation } from './core';
@@ -19,6 +22,9 @@ async function salonSession(): Promise<SalonSession | null> {
  * Kesirano po zahtevu (layout i stranica dele isti rezultat).
  */
 export const requirePanel = cache(async (): Promise<PanelContext> => {
+  const h = await headers();
+  const tenant = await resolveTenantByHost(h.get('host'));
+  if (tenant && isSalonUnavailable(tenant.status)) redirect('/');
   const session = await salonSession();
   if (!session) redirect('/prijava');
   const ctx = await withTenant(session.realm.organizationId, (client) => loadPanelContext(client, session));
@@ -40,6 +46,7 @@ export async function runPanelAction<T>(
 ): Promise<ActionResult<T>> {
   const session = await salonSession();
   if (!session) return { ok: false, error: 'Niste prijavljeni.' };
+  if (isSalonUnavailable(session.realm.tenant.status)) return { ok: false, error: 'Sajt nije dostupan.' };
   try {
     const data = await withTenant(session.realm.organizationId, async (client) => {
       const ctx = await loadPanelContext(client, session);
@@ -48,7 +55,7 @@ export async function runPanelAction<T>(
     });
     return { ok: true, data };
   } catch (error) {
-    if (error instanceof PanelError) return { ok: false, error: error.message };
+    if (error instanceof UserFacingError) return { ok: false, error: error.message };
     throw error;
   }
 }

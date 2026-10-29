@@ -1,8 +1,8 @@
 import type { ClientBase } from 'pg';
 
 /**
- * Nepotvrdjene gost-termine kojima je istekao rok prebacuje u otkazane (oslobadja slot,
- * jer exclusion constraint racuna i 'pending'). organizationId null = svi saloni (pozadinski posao).
+ * Pending gost-termine kojima je istekao rok (60 min kad salon trazi potvrdu) prebacuje
+ * u otkazane i oslobadja slot. organizationId null = svi saloni (pozadinski posao).
  */
 export async function expirePendingAppointments(
   client: ClientBase,

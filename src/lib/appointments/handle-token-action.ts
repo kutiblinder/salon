@@ -20,7 +20,9 @@ export async function handleTokenAction(
   }
 
   const tenant = await resolveTenantByHost(request.headers.get('host'));
-  if (!tenant) return Response.json({ error: 'tenant_not_found' }, { status: 404 });
+  if (!tenant || tenant.status === 'inactive') {
+    return Response.json({ error: 'tenant_not_found' }, { status: 404 });
+  }
 
   const result = await withTenant(tenant.id, (client) => action(client, tenant.id, token));
   if (result.ok) return Response.json({ ok: true });

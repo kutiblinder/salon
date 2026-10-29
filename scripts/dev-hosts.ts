@@ -1,11 +1,11 @@
 /**
- * Upisuje 127.0.0.1 localhost.rs / sajt2.rs / sajt3.rs u sistemski hosts fajl.
+ * Upisuje 127.0.0.1 ateljekosic.rs / zenmasaza.rs / bellanails.rs u sistemski hosts fajl.
  * Windows: pokreni PowerShell kao Administrator: npm run hosts:dev
  */
 import { readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 
-export const DEV_SALON_DOMAINS = ['localhost.rs', 'sajt2.rs', 'sajt3.rs'] as const;
+export const DEV_SALON_DOMAINS = ['ateljekosic.rs', 'zenmasaza.rs', 'bellanails.rs'] as const;
 
 const BEGIN = '# salon-dev-hosts';
 const END = '# salon-dev-hosts-end';

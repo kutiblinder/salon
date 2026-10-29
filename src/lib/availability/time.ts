@@ -66,6 +66,19 @@ export function addDays(date: string, days: number): string {
   return dt.toISOString().slice(0, 10);
 }
 
+/** Svi datumi od `from` do `to` uključivo (`YYYY-MM-DD`). */
+export function eachDateInclusive(from: string, to: string): string[] {
+  if (to < from) return [];
+  const dates: string[] = [];
+  let date = from;
+  while (date <= to) {
+    dates.push(date);
+    date = addDays(date, 1);
+    if (dates.length > 400) throw new Error('date range too long');
+  }
+  return dates;
+}
+
 /** Dan u nedelji: 0 = ponedeljak ... 6 = nedelja (isto kao u bazi). */
 export function weekdayMonday0(date: string): number {
   const [y, m, d] = parseDate(date);
