@@ -45,3 +45,14 @@ Panel je na domenu salona (`/panel`), samo za naloge tog salona koji imaju clans
   Slobodan dan: `location_id` i sablon su NULL, vazi u svim objektima. Smena-izuzetak mora imati
   i lokaciju i sablon.
 - Promena rasporeda ne otkazuje postojece termine; novi termini se racunaju po novom rasporedu.
+
+## Odsustva (`/panel/odsustva`)
+
+- Tabela `time_off` (nema lokacije): pauza, godisnji, bolovanje, drugo. Oduzima se od smene u
+  `computeSlots` (usluga ne sme da se preklapa sa odsustvom).
+- Pauza: jedan dan, pocetak i kraj u istom danu (MVP, kao smene, ne preko ponoci).
+- Godisnji/bolovanje: celi dani, oba datuma ukljucena, u vremenskoj zoni objekta (`[ponoc, ponoc)`).
+  Vazi na svim objektima tog radnika.
+- Zaposleni sa `own_only` vidi i menja samo svoja odsustva. Menadzer vezan za lokaciju: radnike
+  koji rade na toj lokaciji (odsustvo i dalje vazi i na drugim objektima).
+- Unos ne otkazuje postojece termine.

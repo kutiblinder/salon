@@ -1,4 +1,5 @@
 import type { AppointmentStatus } from '../appointments/status';
+import { addDays, localDateOf } from '../availability/time';
 
 const LOCALE = 'sr-Latn-RS';
 
@@ -16,6 +17,25 @@ export function formatDayLabel(date: string): string {
     month: 'long',
     year: 'numeric',
   }).format(new Date(`${date}T12:00:00Z`));
+}
+
+/**
+ * Prikaz intervala odsustva. Celi dani (ponoc do ponoci) bez sati;
+ * ista kalendarska noc za pauzu: datum + "12:00–13:00".
+ */
+export function formatTimeOffRange(start: Date, end: Date, timeZone: string): string {
+  const startMs = start.getTime();
+  const endMs = end.getTime();
+  const startDate = localDateOf(startMs, timeZone);
+  const endDate = localDateOf(endMs, timeZone);
+  const startT = formatTime(start, timeZone);
+  const endT = formatTime(end, timeZone);
+  if (startT === '00:00' && endT === '00:00') {
+    const last = addDays(endDate, -1);
+    return startDate === last ? formatDayLabel(startDate) : `${formatDayLabel(startDate)} – ${formatDayLabel(last)}`;
+  }
+  if (startDate === endDate) return `${formatDayLabel(startDate)} ${startT}–${endT}`;
+  return `${formatDayLabel(startDate)} ${startT} – ${formatDayLabel(endDate)} ${endT}`;
 }
 
 export function formatPrice(price: string, currency = 'RSD'): string {
