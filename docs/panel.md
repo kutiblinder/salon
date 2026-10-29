@@ -13,7 +13,8 @@ Panel je na domenu salona (`/panel`), samo za naloge tog salona koji imaju clans
   `PanelError` vraca poruku korisniku i ponistava transakciju.
 - Dozvola se proverava nad objektom **ucitanim iz baze** (`ctx.require(permission, {locationId, staffId})`),
   nikad nad ID-jem iz forme. Zaposleni sa `own_only` vidi i menja samo svoje termine.
-- Logika panela bez Next-a je u `src/lib/panel/core.ts` i `appointments.ts` (testovi: `*.dbtest.ts`).
+- Logika panela bez Next-a je u `src/lib/panel/` (`core.ts`, `appointments.ts`, `schedule.ts`,
+  `time-off.ts`, `staff.ts`; testovi: `*.dbtest.ts`).
 
 ## Termini (`/panel/termini`)
 
@@ -56,3 +57,17 @@ Panel je na domenu salona (`/panel`), samo za naloge tog salona koji imaju clans
 - Zaposleni sa `own_only` vidi i menja samo svoja odsustva. Menadzer vezan za lokaciju: radnike
   koji rade na toj lokaciji (odsustvo i dalje vazi i na drugim objektima).
 - Unos ne otkazuje postojece termine.
+
+## Zaposleni (`/panel/zaposleni`)
+
+- Profil (`staff`): ime, titula, opis, redosled, aktivan. Slika (`photo_url`) nije u ovom koraku.
+  Bar jedna lokacija. Usluge opcione; prazno trajanje = trajanje sa `location_services`.
+- Menja nalog sa `staff.manage` (vlasnik, ili admin platforme u salonu). Menadzer i zaposleni
+  nemaju ovu dozvolu.
+- Skidanje lokacije brise `weekly_schedule` i `schedule_exceptions` vezane za tu lokaciju
+  (slobodan dan bez lokacije ostaje).
+- Deaktivacija (`is_active = false`) umesto brisanja: ne vidi se za zakazivanje, nalog ostaje.
+- **Nalog za prijavu**: ako email vec postoji u tom salonu, veze se (dodaje se `staff`
+  clanstvo, `staff.user_id`); inace se pravi `users` + `accounts` kao `user:create`.
+  Lozinka se prikaze jednom, nikad ne ide u audit log. Isti nalog ne moze na dva profila
+  (`staff_user_idx`).

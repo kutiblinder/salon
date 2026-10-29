@@ -11,6 +11,7 @@ export default async function PanelLayout({ children }: { children: React.ReactN
     items.push({ href: '/panel/smene', label: 'Smene' });
     items.push({ href: '/panel/odsustva', label: 'Odsustva' });
   }
+  if (ctx.locationsFor('staff.manage').length > 0) items.push({ href: '/panel/zaposleni', label: 'Zaposleni' });
 
   return (
     <div className="min-h-screen bg-neutral-50">

@@ -106,7 +106,7 @@ Pazi na kontrast boje teksta na primarnoj boji salona.
 ## Trenutno stanje (azurirati posle svakog vecog koraka)
 
 Gotovo i **provereno** na pravoj bazi (Postgres 16 u Dockeru, Next 16.4, `package-lock.json` u repou).
-`npm test`: 73 jedinicna testa; `npm run test:db`: 24 integraciona testa; typecheck i `next build` prolaze;
+`npm test`: 78 jedinicnih testova; `npm run test:db`: 28 integracionih testova; typecheck i `next build` prolaze;
 migracije (001-003) prolaze na praznoj bazi.
 - `src/lib/availability/`: `time.ts` (zone, DST, datumi), `schedule.ts` (`resolveShift`),
   `slots.ts` (`computeSlots`, `mergeStaffSlots`, `pickStaff`), `load.ts` (SQL upiti, `isBookableDate`).
@@ -134,6 +134,9 @@ migracije (001-003) prolaze na praznoj bazi.
   Kod u `src/lib/panel/schedule.ts`. Zaposleni menja samo svoj raspored; sablone menja vlasnik/menadzer.
 - **Panel: odsustva** (korak 4, deo 3): `/panel/odsustva` (`time_off`: pauza / godisnji / bolovanje).
   Kod u `src/lib/panel/time-off.ts`. Zaposleni menja samo svoja.
+- **Panel: zaposleni** (korak 4, deo 4): `/panel/zaposleni` (profil, lokacije, usluge, nalog
+  za prijavu: novi ili veza postojeceg u salonu). Kod u `src/lib/panel/staff.ts`. Dozvola
+  `staff.manage` (vlasnik). Lozinka se ne upisuje u audit log.
 
 Poznate odluke i ogranicenja algoritma:
 - `appointments.ends_at` = pocetak + trajanje + buffer; sama usluga mora da stane u smenu, buffer ne mora.
@@ -152,8 +155,8 @@ Poznate odluke i ogranicenja algoritma:
 3. ~~Zakazivanje gosta~~ (gotovo, vidi `docs/zakazivanje.md`). Ostaje: zakazivanje za ulogovanog
    klijenta (`client_user_id`, bez potvrde emailom) i istorija termina u "Moj nalog".
    Pre produkcije: rate limit, email provajder, odluka o rezervacijama za salone u statusu `draft`.
-4. Panel vlasnika/zaposlenih: kalendar, termini, zaposleni, smene, odsustva. **U toku.**
-   Gotovo: termini, smene, odsustva. Sledi: zaposleni.
+4. ~~Panel vlasnika/zaposlenih: kalendar, termini, zaposleni, smene, odsustva~~ (gotovo,
+   vidi `docs/panel.md`). Gotovo: termini, smene, odsustva, zaposleni.
    Svaka izmena kroz `runPanelAction()` / `ctx.require()` i `writeAudit()` u istoj transakciji.
 5. Admin panel: izbor salona, uredjivanje sadrzaja, galerije, cena.
 6. Javni sajt salona sa sadrzajem iz baze, SEO.
