@@ -3,7 +3,7 @@
  */
 import { after, before, test } from 'node:test';
 import assert from 'node:assert/strict';
-import { randomUUID } from 'node:crypto';
+import { testId } from '../test-id';
 import type { PoolClient } from 'pg';
 import { getPool, withTenant } from '../db';
 import { addDays, localDateOf } from '../availability/time';
@@ -18,15 +18,15 @@ import {
 } from './schedule';
 
 const TZ = 'Europe/Belgrade';
-const ORG = randomUUID();
-const LOC_A = randomUUID();
-const LOC_B = randomUUID();
-const ANA = randomUUID();
-const BOJAN = randomUUID();
-const OWNER_USER = randomUUID();
-const ANA_USER = randomUUID();
-const TPL_A = randomUUID();
-const TPL_B = randomUUID();
+const ORG = testId();
+const LOC_A = testId();
+const LOC_B = testId();
+const ANA = testId();
+const BOJAN = testId();
+const OWNER_USER = testId();
+const ANA_USER = testId();
+const TPL_A = testId();
+const TPL_B = testId();
 const DATE = addDays(localDateOf(Date.now(), TZ), 14);
 
 before(async () => {
@@ -60,7 +60,7 @@ function session(userId: string): SalonSession {
       tenant: { id: ORG, name: 'Schedule test', slug: 'sch', status: 'published', theme: {} },
     },
     user: { id: userId, name: 'u', email: 'u@test.rs', phone: null, organizationId: ORG },
-    sessionId: randomUUID(),
+    sessionId: testId(),
     activeOrganizationId: null,
   };
 }

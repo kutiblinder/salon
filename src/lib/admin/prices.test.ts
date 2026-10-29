@@ -27,7 +27,7 @@ describe('parseServiceName / parseDescription / parsePrice', () => {
 });
 
 describe('parseOffers', () => {
-  const loc = '22222222-2222-4222-8222-222222222222';
+  const loc = '1';
   it('sklapa ponudu po lokaciji', () => {
     const offers = parseOffers([loc], (id, field) => {
       if (id !== loc) return '';

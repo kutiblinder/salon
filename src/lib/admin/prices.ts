@@ -69,7 +69,7 @@ export async function loadAdminLocations(client: PoolClient, organizationId: str
 async function assertOrgLocations(client: PoolClient, organizationId: string, locationIds: string[]) {
   if (locationIds.length === 0) return;
   const res = await client.query<{ n: number }>(
-    `SELECT count(*)::int AS n FROM locations WHERE organization_id = $1 AND is_active AND id = ANY($2::uuid[])`,
+    `SELECT count(*)::int AS n FROM locations WHERE organization_id = $1 AND is_active AND id = ANY($2::bigint[])`,
     [organizationId, locationIds],
   );
   if (res.rows[0].n !== locationIds.length) throw new AdminError('Lokacija ne postoji.');
@@ -148,7 +148,7 @@ async function replaceOffers(
     `DELETE FROM location_services ls
       USING locations l
       WHERE ls.location_id = l.id AND l.organization_id = $1 AND ls.service_id = $2
-        AND NOT (ls.location_id = ANY($3::uuid[]))`,
+        AND NOT (ls.location_id = ANY($3::bigint[]))`,
     [organizationId, serviceId, ids],
   );
   for (const offer of offers) {

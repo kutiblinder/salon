@@ -3,19 +3,19 @@
  */
 import { after, before, test } from 'node:test';
 import assert from 'node:assert/strict';
-import { randomUUID } from 'node:crypto';
+import { testId } from '../test-id';
 import type { PoolClient } from 'pg';
 import { getPool, withTenant } from '../db';
 import { loadAdminContext, AdminError, type AdminContext, type PlatformSession } from './core';
 import { createService, getService, listServices, updateService } from './prices';
 
-const ORG = randomUUID();
-const OTHER = randomUUID();
-const LOC_A = randomUUID();
-const LOC_B = randomUUID();
-const LOC_OTHER = randomUUID();
-const ADMIN_USER = randomUUID();
-const OWNER_USER = randomUUID();
+const ORG = testId();
+const OTHER = testId();
+const LOC_A = testId();
+const LOC_B = testId();
+const LOC_OTHER = testId();
+const ADMIN_USER = testId();
+const OWNER_USER = testId();
 
 before(async () => {
   await getPool().query(`
@@ -43,7 +43,7 @@ function session(orgId: string | null): PlatformSession {
   return {
     realm: { kind: 'platform' },
     user: { id: ADMIN_USER, name: 'Admin', email: 'admin-prices@test.rs', phone: null, organizationId: null },
-    sessionId: randomUUID(),
+    sessionId: testId(),
     activeOrganizationId: orgId,
   };
 }
@@ -62,7 +62,7 @@ test('vlasnik salona nije admin platforme', async () => {
       loadAdminContext(client, {
         realm: { kind: 'platform' },
         user: { id: OWNER_USER, name: 'V', email: 'owner-prices@test.rs', phone: null, organizationId: ORG },
-        sessionId: randomUUID(),
+        sessionId: testId(),
         activeOrganizationId: ORG,
       }),
     ),

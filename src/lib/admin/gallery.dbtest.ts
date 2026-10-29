@@ -3,7 +3,7 @@
  */
 import { after, before, test } from 'node:test';
 import assert from 'node:assert/strict';
-import { randomUUID } from 'node:crypto';
+import { testId } from '../test-id';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -13,11 +13,11 @@ import { getObject } from '../storage';
 import { loadAdminContext, AdminError, type AdminContext, type PlatformSession } from './core';
 import { addGalleryImage, deleteGalleryItem, listGallery, updateGalleryItem } from './gallery';
 
-const ORG = randomUUID();
-const OTHER = randomUUID();
-const LOC = randomUUID();
-const LOC_OTHER = randomUUID();
-const ADMIN_USER = randomUUID();
+const ORG = testId();
+const OTHER = testId();
+const LOC = testId();
+const LOC_OTHER = testId();
+const ADMIN_USER = testId();
 const TMP = fs.mkdtempSync(path.join(os.tmpdir(), 'salon-gallery-'));
 
 process.env.STORAGE_DIR = TMP;
@@ -52,7 +52,7 @@ function session(orgId: string | null): PlatformSession {
   return {
     realm: { kind: 'platform' },
     user: { id: ADMIN_USER, name: 'Admin', email: 'admin-gallery@test.rs', phone: null, organizationId: null },
-    sessionId: randomUUID(),
+    sessionId: testId(),
     activeOrganizationId: orgId,
   };
 }

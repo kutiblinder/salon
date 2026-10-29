@@ -2,9 +2,9 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { normalizePhone, parseClientBooking, parseGuestBooking, parseStaffBooking } from './validate';
 
-const LOC = '22222222-2222-4222-8222-222222222222';
-const SRV = '33333333-3333-4333-8333-333333333331';
-const STF = '44444444-4444-4444-8444-444444444441';
+const LOC = '1';
+const SRV = '1';
+const STF = '1';
 
 function body(overrides: Record<string, unknown> = {}) {
   return {
@@ -76,8 +76,8 @@ test('neispravna polja daju jasnu gresku', () => {
 });
 
 const staffFields = {
-  locationId: '22222222-2222-4222-8222-222222222222',
-  serviceId: '33333333-3333-4333-8333-333333333331',
+  locationId: '1',
+  serviceId: '1',
   staffId: '',
   start: '2026-11-02T09:00:00.000Z',
   name: '  Petar  Petrović ',
@@ -104,14 +104,37 @@ test('parseStaffBooking: proverava email kad je unet, telefon je obavezan', () =
   assert.deepEqual(parseStaffBooking({ ...staffFields, phone: '' }), { ok: false, error: 'invalid_phone' });
 });
 
-test('parseClientBooking: slot bez gosta, saglasnost nije potrebna', () => {
-  const r = parseClientBooking({
-    locationId: LOC,
-    serviceId: SRV,
-    start: '2026-11-02T07:00:00.000Z',
-    staffId: null,
-  });
+const ACCOUNT = { name: 'Petar Petrović', phone: '+381641111111', email: 'petar@primer.rs' };
+
+test('parseClientBooking: slot bez gosta, saglasnost nije potrebna, podaci sa naloga', () => {
+  const r = parseClientBooking(
+    {
+      locationId: LOC,
+      serviceId: SRV,
+      start: '2026-11-02T07:00:00.000Z',
+      staffId: null,
+    },
+    ACCOUNT,
+  );
   assert.ok(r.ok);
   assert.equal(r.value.locationId, LOC);
   assert.equal(r.value.staffId, null);
+  assert.equal(r.value.guest.name, ACCOUNT.name);
+  assert.equal(r.value.guest.phone, ACCOUNT.phone);
+  assert.equal(r.value.guest.email, ACCOUNT.email);
+});
+
+test('parseClientBooking: ime i telefon sa forme imaju prednost nad nalogom', () => {
+  const r = parseClientBooking(
+    {
+      locationId: LOC,
+      serviceId: SRV,
+      start: '2026-11-02T07:00:00.000Z',
+      guest: { name: '  Ana  Marković ', phone: '064 999 8888' },
+    },
+    ACCOUNT,
+  );
+  assert.ok(r.ok);
+  assert.equal(r.value.guest.name, 'Ana Marković');
+  assert.equal(r.value.guest.phone, '+381649998888');
 });

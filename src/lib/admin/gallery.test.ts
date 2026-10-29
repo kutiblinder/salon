@@ -14,13 +14,10 @@ describe('parseAltText / parseCaption / parseOptionalLocationId', () => {
     assert.equal(parseCaption('  ok  '), 'ok');
     assert.equal(parseCaption('x'.repeat(201)), undefined);
   });
-  it('lokacija: prazno = null, UUID ili greska', () => {
+  it('lokacija: prazno = null, id ili greska', () => {
     assert.equal(parseOptionalLocationId(''), null);
-    assert.equal(parseOptionalLocationId('not-a-uuid'), undefined);
-    assert.equal(
-      parseOptionalLocationId('22222222-2222-4222-8222-222222222222'),
-      '22222222-2222-4222-8222-222222222222',
-    );
+    assert.equal(parseOptionalLocationId('not-an-id'), undefined);
+    assert.equal(parseOptionalLocationId('1'), '1');
   });
 });
 

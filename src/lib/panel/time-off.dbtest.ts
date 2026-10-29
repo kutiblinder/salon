@@ -3,7 +3,7 @@
  */
 import { after, before, test } from 'node:test';
 import assert from 'node:assert/strict';
-import { randomUUID } from 'node:crypto';
+import { testId } from '../test-id';
 import type { PoolClient } from 'pg';
 import { getPool, withTenant } from '../db';
 import { addDays, localDateOf, zonedTimeToUtcMs } from '../availability/time';
@@ -11,12 +11,12 @@ import { loadPanelContext, PanelError, type PanelContext, type SalonSession } fr
 import { breakRange, createTimeOff, deleteTimeOff, fullDayRange } from './time-off';
 
 const TZ = 'Europe/Belgrade';
-const ORG = randomUUID();
-const LOC = randomUUID();
-const ANA = randomUUID();
-const BOJAN = randomUUID();
-const OWNER_USER = randomUUID();
-const ANA_USER = randomUUID();
+const ORG = testId();
+const LOC = testId();
+const ANA = testId();
+const BOJAN = testId();
+const OWNER_USER = testId();
+const ANA_USER = testId();
 const FROM = addDays(localDateOf(Date.now(), TZ), 14);
 
 before(async () => {
@@ -45,7 +45,7 @@ function session(userId: string): SalonSession {
       tenant: { id: ORG, name: 'Time off test', slug: 'toff', status: 'published', theme: {} },
     },
     user: { id: userId, name: 'u', email: 'u@test.rs', phone: null, organizationId: ORG },
-    sessionId: randomUUID(),
+    sessionId: testId(),
     activeOrganizationId: null,
   };
 }

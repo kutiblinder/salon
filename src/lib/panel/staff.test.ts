@@ -24,9 +24,9 @@ describe('parseEmail / parseDurationOverride / parseIdList', () => {
     assert.equal(parseDurationOverride('0'), undefined);
     assert.equal(parseDurationOverride('1.5'), undefined);
   });
-  it('lista UUID, bez duplikata', () => {
-    const a = '22222222-2222-4222-8222-222222222222';
-    assert.deepEqual(parseIdList([a, a.toUpperCase(), '']), [a]);
+  it('lista id-eva, bez duplikata', () => {
+    const a = '12';
+    assert.deepEqual(parseIdList([a, a, '']), [a]);
     assert.equal(parseIdList(['nije']), null);
   });
   it('sort_order je nula ili pozitivan ceo broj', () => {

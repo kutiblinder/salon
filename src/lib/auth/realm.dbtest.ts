@@ -4,16 +4,16 @@
  */
 import { after, before, test } from 'node:test';
 import assert from 'node:assert/strict';
-import { randomUUID } from 'node:crypto';
+import { testId } from '../test-id';
 import { getPool } from '../db';
 
-const A = randomUUID();
-const B = randomUUID();
-const LOC_B = randomUUID();
-const STAFF_A = randomUUID();
-const USER_A = randomUUID();
-const USER_B = randomUUID();
-const PLATFORM_USER = randomUUID();
+const A = testId();
+const B = testId();
+const LOC_B = testId();
+const STAFF_A = testId();
+const USER_A = testId();
+const USER_B = testId();
+const PLATFORM_USER = testId();
 const EMAIL = `test-${A.slice(0, 8)}@primer.rs`;
 
 const q = (sql: string, params: unknown[] = []) => getPool().query(sql, params);
@@ -33,7 +33,7 @@ before(async () => {
 
 after(async () => {
   await q('DELETE FROM users WHERE id = $1', [PLATFORM_USER]);
-  await q('DELETE FROM organizations WHERE id = ANY($1::uuid[])', [[A, B]]);
+  await q('DELETE FROM organizations WHERE id = ANY($1::bigint[])', [[A, B]]);
   await getPool().end();
 });
 

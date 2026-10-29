@@ -2,10 +2,9 @@ import { getPool } from '@/lib/db';
 import { writeAudit } from '@/lib/audit';
 import { isPlatformAdmin, loadActor } from '@/lib/auth/actor';
 import { getCurrentSession } from '@/lib/auth/session';
+import { isId } from '@/lib/ids';
 
 export const dynamic = 'force-dynamic';
-
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /**
  * POST /api/admin/active-organization { organizationId | null }
@@ -21,7 +20,7 @@ export async function POST(request: Request) {
   } catch {
     return Response.json({ error: 'invalid_body' }, { status: 400 });
   }
-  if (organizationId !== null && (typeof organizationId !== 'string' || !UUID.test(organizationId))) {
+  if (organizationId !== null && (typeof organizationId !== 'string' || !isId(organizationId))) {
     return Response.json({ error: 'invalid_id' }, { status: 400 });
   }
 

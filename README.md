@@ -109,7 +109,7 @@ Otvori:
 - http://localhost:3000/admin — admin platforme (domen platforme; nalog iz `user:create --platform-admin`)
 - http://localhost:3000/api/health — treba `{"status":"ok","db":"up"}`
 - Slobodni termini (Fade šišanje, bilo koji radnik; zameni datum budućim radnim danom):
-  http://demo.localhost:3000/api/availability?locationId=22222222-2222-4222-8222-222222222222&serviceId=33333333-3333-4333-8333-333333333331&date=2026-11-02
+  http://demo.localhost:3000/api/availability?locationId=1&serviceId=1&date=2026-11-02
 
 Ako je datum u prošlosti ili dalje od 90 dana, lista termina je prazna (ponedeljak–subota ima termine, nedelja nema).
 

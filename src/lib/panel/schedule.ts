@@ -5,9 +5,9 @@ import { PanelError, type PanelContext } from './core';
 import { WEEKDAYS, type ScheduleExceptionRow, type ShiftTemplate, type StaffWeekly, type WeeklyDay } from './schedule-types';
 
 export { WEEKDAYS, type ScheduleExceptionRow, type ShiftTemplate, type StaffWeekly, type WeeklyDay } from './schedule-types';
+export { isId, isUuid } from '../ids';
 
 const TIME = /^([01]\d|2[0-3]):([0-5]\d)(?::[0-5]\d)?$/;
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
 
 /** 'HH:MM' ili 'HH:MM:SS' -> 'HH:MM', inace null. */
@@ -32,10 +32,6 @@ export function parseTemplateName(raw: unknown): string | null {
 
 export function isWeekday(value: unknown): value is number {
   return typeof value === 'number' && Number.isInteger(value) && value >= 0 && value <= 6;
-}
-
-export function isUuid(value: unknown): value is string {
-  return typeof value === 'string' && UUID.test(value);
 }
 
 export function isDate(value: unknown): value is string {
@@ -81,7 +77,7 @@ export async function loadWeeklyByLocation(
        JOIN shift_templates t ON t.id = ws.shift_template_id
        JOIN locations l ON l.id = ws.location_id
        JOIN staff s ON s.id = ws.staff_id
-      WHERE s.organization_id = $1 AND ws.staff_id = ANY($2::uuid[])`,
+      WHERE s.organization_id = $1 AND ws.staff_id = ANY($2::bigint[])`,
     [ctx.organizationId, ids],
   );
 
@@ -129,7 +125,7 @@ export async function loadExceptions(
        JOIN staff s ON s.id = se.staff_id
        LEFT JOIN locations l ON l.id = se.location_id
        LEFT JOIN shift_templates t ON t.id = se.shift_template_id
-      WHERE s.organization_id = $1 AND se.staff_id = ANY($2::uuid[]) AND se.work_date >= $3::date
+      WHERE s.organization_id = $1 AND se.staff_id = ANY($2::bigint[]) AND se.work_date >= $3::date
       ORDER BY se.work_date, s.sort_order, s.display_name`,
     [organizationId, staffIds, fromDate],
   );

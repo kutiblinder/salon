@@ -1,4 +1,4 @@
-import { randomBytes, randomUUID } from 'node:crypto';
+import { randomBytes } from 'node:crypto';
 import { hashPassword } from 'better-auth/crypto';
 import type { PoolClient } from 'pg';
 import { writeAudit } from '../audit';
@@ -165,17 +165,17 @@ export async function getStaff(client: PoolClient, ctx: PanelContext, staffId: s
 }
 
 async function replaceLocations(client: PoolClient, staffId: string, locationIds: string[]) {
-  await client.query(`DELETE FROM staff_locations WHERE staff_id = $1 AND NOT (location_id = ANY($2::uuid[]))`, [
+  await client.query(`DELETE FROM staff_locations WHERE staff_id = $1 AND NOT (location_id = ANY($2::bigint[]))`, [
     staffId,
     locationIds,
   ]);
   await client.query(
-    `DELETE FROM weekly_schedule WHERE staff_id = $1 AND NOT (location_id = ANY($2::uuid[]))`,
+    `DELETE FROM weekly_schedule WHERE staff_id = $1 AND NOT (location_id = ANY($2::bigint[]))`,
     [staffId, locationIds],
   );
   await client.query(
     `DELETE FROM schedule_exceptions
-      WHERE staff_id = $1 AND location_id IS NOT NULL AND NOT (location_id = ANY($2::uuid[]))`,
+      WHERE staff_id = $1 AND location_id IS NOT NULL AND NOT (location_id = ANY($2::bigint[]))`,
     [staffId, locationIds],
   );
   for (const locationId of locationIds) {
@@ -188,7 +188,7 @@ async function replaceLocations(client: PoolClient, staffId: string, locationIds
 
 async function replaceServices(client: PoolClient, staffId: string, services: StaffServiceAssignment[]) {
   const ids = services.map((s) => s.serviceId);
-  await client.query(`DELETE FROM staff_services WHERE staff_id = $1 AND NOT (service_id = ANY($2::uuid[]))`, [
+  await client.query(`DELETE FROM staff_services WHERE staff_id = $1 AND NOT (service_id = ANY($2::bigint[]))`, [
     staffId,
     ids,
   ]);
@@ -205,7 +205,7 @@ async function replaceServices(client: PoolClient, staffId: string, services: St
 async function assertOrgServices(client: PoolClient, organizationId: string, serviceIds: string[]) {
   if (serviceIds.length === 0) return;
   const res = await client.query<{ n: number }>(
-    `SELECT count(*)::int AS n FROM services WHERE organization_id = $1 AND id = ANY($2::uuid[])`,
+    `SELECT count(*)::int AS n FROM services WHERE organization_id = $1 AND id = ANY($2::bigint[])`,
     [organizationId, serviceIds],
   );
   if (res.rows[0].n !== serviceIds.length) throw new PanelError('Usluga ne postoji.');
@@ -323,17 +323,17 @@ export async function createStaffLogin(
     const taken = await client.query(`SELECT 1 FROM staff WHERE user_id = $1`, [userId]);
     if ((taken.rowCount ?? 0) > 0) throw new PanelError('Taj nalog je već vezan za drugog zaposlenog.');
   } else {
-    userId = randomUUID();
     generated = input.password && input.password.length >= 8 ? input.password : randomBytes(12).toString('base64url');
     try {
-      await client.query(
-        `INSERT INTO users (id, organization_id, email, full_name, email_verified) VALUES ($1, $2, $3, $4, true)`,
-        [userId, ctx.organizationId, input.email, row.display_name],
+      const inserted = await client.query<{ id: string }>(
+        `INSERT INTO users (organization_id, email, full_name, email_verified) VALUES ($1, $2, $3, true) RETURNING id`,
+        [ctx.organizationId, input.email, row.display_name],
       );
+      userId = inserted.rows[0].id;
       await client.query(
-        `INSERT INTO accounts (id, account_id, provider_id, user_id, organization_id, password)
-         VALUES ($1, $2::text, 'credential', $2::uuid, $3, $4)`,
-        [randomUUID(), userId, ctx.organizationId, await hashPassword(generated)],
+        `INSERT INTO accounts (account_id, provider_id, user_id, organization_id, password)
+         VALUES ($1::text, 'credential', $1::bigint, $2, $3)`,
+        [userId, ctx.organizationId, await hashPassword(generated)],
       );
     } catch (error) {
       if ((error as { code?: string }).code === UNIQUE_VIOLATION) {
