@@ -7,7 +7,10 @@ export default async function PanelLayout({ children }: { children: React.ReactN
 
   const items: NavItem[] = [{ href: '/panel', label: 'Pregled' }];
   if (ctx.locationsFor('appointments.manage').length > 0) items.push({ href: '/panel/termini', label: 'Termini' });
-  if (ctx.locationsFor('schedule.manage').length > 0) items.push({ href: '/panel/smene', label: 'Smene' });
+  if (ctx.locationsFor('schedule.manage').length > 0) {
+    items.push({ href: '/panel/smene', label: 'Smene' });
+    items.push({ href: '/panel/odsustva', label: 'Odsustva' });
+  }
 
   return (
     <div className="min-h-screen bg-neutral-50">
