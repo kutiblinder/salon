@@ -31,3 +31,17 @@ Panel je na domenu salona (`/panel`), samo za naloge tog salona koji imaju clans
   - zaposleni sa `own_only` zakazuje samo sebi; "bilo ko slobodan" trazi dozvolu nad celom lokacijom.
 - Telefon i email klijenta se prikazuju samo uz `clients.view`.
 - Za sada se klijentu ne salje obavestenje o terminu koji je uneo ili otkazao salon (korak 7).
+
+## Smene (`/panel/smene`)
+
+- **Sabloni** po lokaciji (`shift_templates`): naziv + pocetak/kraj u istom danu (MVP ne podrzava smenu preko ponoci).
+  Menja ih nalog sa `schedule.manage` nad celom lokacijom (vlasnik/menadzer). Zaposleni sa
+  `own_only` vidi sablone, ne menja ih. Brisanje je zabranjeno dok sablon stoji u rasporedu
+  ili izuzetku (inace bi CASCADE obrisao te redove).
+- **Nedeljni raspored** (`weekly_schedule`): jedna smena dnevno po radniku (PK `staff_id + weekday`).
+  "Ne radi" na ovoj lokaciji ne dira unos na drugoj. Izbor sablona ovde prepisuje dan koji je
+  bio na drugom objektu.
+- **Izuzeci** (`schedule_exceptions`) za konkretan datum imaju prednost (isto kao `resolveShift`).
+  Slobodan dan: `location_id` i sablon su NULL, vazi u svim objektima. Smena-izuzetak mora imati
+  i lokaciju i sablon.
+- Promena rasporeda ne otkazuje postojece termine; novi termini se racunaju po novom rasporedu.

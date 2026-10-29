@@ -106,7 +106,7 @@ Pazi na kontrast boje teksta na primarnoj boji salona.
 ## Trenutno stanje (azurirati posle svakog vecog koraka)
 
 Gotovo i **provereno** na pravoj bazi (Postgres 16 u Dockeru, Next 16.4, `package-lock.json` u repou).
-`npm test`: 61 jedinicni test; `npm run test:db`: 15 integracionih testova; typecheck i `next build` prolaze;
+`npm test`: 67 jedinicnih testova; `npm run test:db`: 21 integracionih testova; typecheck i `next build` prolaze;
 migracije (001-003) prolaze na praznoj bazi.
 - `src/lib/availability/`: `time.ts` (zone, DST, datumi), `schedule.ts` (`resolveShift`),
   `slots.ts` (`computeSlots`, `mergeStaffSlots`, `pickStaff`), `load.ts` (SQL upiti, `isBookableDate`).
@@ -130,6 +130,8 @@ migracije (001-003) prolaze na praznoj bazi.
   i radniku, promena statusa, unos termina telefonom koji je odmah potvrdjen). Izmene su Server
   Actions kroz `runPanelAction()` (`src/lib/panel/context.ts`), dozvola nad objektom iz baze
   (`ctx.require`), audit u istoj transakciji. Logika u `src/lib/panel/` (`core.ts`, `appointments.ts`).
+- **Panel: smene** (korak 4, deo 2): `/panel/smene` (sabloni, nedeljni raspored, izuzeci za datum).
+  Kod u `src/lib/panel/schedule.ts`. Zaposleni menja samo svoj raspored; sablone menja vlasnik/menadzer.
 
 Poznate odluke i ogranicenja algoritma:
 - `appointments.ends_at` = pocetak + trajanje + buffer; sama usluga mora da stane u smenu, buffer ne mora.
@@ -149,7 +151,7 @@ Poznate odluke i ogranicenja algoritma:
    klijenta (`client_user_id`, bez potvrde emailom) i istorija termina u "Moj nalog".
    Pre produkcije: rate limit, email provajder, odluka o rezervacijama za salone u statusu `draft`.
 4. Panel vlasnika/zaposlenih: kalendar, termini, zaposleni, smene, odsustva. **U toku.**
-   Gotovo: termini. Sledi: smene (sabloni, nedeljni raspored, izuzeci), odsustva, zaposleni.
+   Gotovo: termini, smene. Sledi: odsustva, zaposleni.
    Svaka izmena kroz `runPanelAction()` / `ctx.require()` i `writeAudit()` u istoj transakciji.
 5. Admin panel: izbor salona, uredjivanje sadrzaja, galerije, cena.
 6. Javni sajt salona sa sadrzajem iz baze, SEO.
