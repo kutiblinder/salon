@@ -24,3 +24,6 @@ next-env.d.ts
 
 # preuzeti arhivi
 *.zip
+
+# IDE
+.idea/
