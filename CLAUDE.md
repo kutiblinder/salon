@@ -106,7 +106,7 @@ Pazi na kontrast boje teksta na primarnoj boji salona.
 ## Trenutno stanje (azurirati posle svakog vecog koraka)
 
 Gotovo i **provereno** na pravoj bazi (Postgres 16 u Dockeru, Next 16.4, `package-lock.json` u repou).
-`npm test`: 52 jedinicna testa; `npm run test:db`: 10 integracionih testova; typecheck i `next build` prolaze;
+`npm test`: 61 jedinicni test; `npm run test:db`: 15 integracionih testova; typecheck i `next build` prolaze;
 migracije (001-003) prolaze na praznoj bazi.
 - `src/lib/availability/`: `time.ts` (zone, DST, datumi), `schedule.ts` (`resolveShift`),
   `slots.ts` (`computeSlots`, `mergeStaffSlots`, `pickStaff`), `load.ts` (SQL upiti, `isBookableDate`).
@@ -126,6 +126,10 @@ migracije (001-003) prolaze na praznoj bazi.
   (izbor salona, `POST /api/admin/active-organization`, upisuje se u audit log).
   Provereno preko HTTP-a: isti email u dva salona su dva naloga, kolacic jednog salona ne vazi
   u drugom ni na platformi, nalozi salona se ne mogu prijaviti na platformu i obrnuto.
+- **Panel: termini** (korak 4, deo 1, `docs/panel.md`): `/panel/termini` (dnevni prikaz po lokaciji
+  i radniku, promena statusa, unos termina telefonom koji je odmah potvrdjen). Izmene su Server
+  Actions kroz `runPanelAction()` (`src/lib/panel/context.ts`), dozvola nad objektom iz baze
+  (`ctx.require`), audit u istoj transakciji. Logika u `src/lib/panel/` (`core.ts`, `appointments.ts`).
 
 Poznate odluke i ogranicenja algoritma:
 - `appointments.ends_at` = pocetak + trajanje + buffer; sama usluga mora da stane u smenu, buffer ne mora.
@@ -144,8 +148,9 @@ Poznate odluke i ogranicenja algoritma:
 3. ~~Zakazivanje gosta~~ (gotovo, vidi `docs/zakazivanje.md`). Ostaje: zakazivanje za ulogovanog
    klijenta (`client_user_id`, bez potvrde emailom) i istorija termina u "Moj nalog".
    Pre produkcije: rate limit, email provajder, odluka o rezervacijama za salone u statusu `draft`.
-4. Panel vlasnika/zaposlenih: kalendar, termini, zaposleni, smene, odsustva. **Sledeci korak.**
-   Svaka izmena kroz `authorize()` / `can()` i `writeAudit()` u istoj transakciji.
+4. Panel vlasnika/zaposlenih: kalendar, termini, zaposleni, smene, odsustva. **U toku.**
+   Gotovo: termini. Sledi: smene (sabloni, nedeljni raspored, izuzeci), odsustva, zaposleni.
+   Svaka izmena kroz `runPanelAction()` / `ctx.require()` i `writeAudit()` u istoj transakciji.
 5. Admin panel: izbor salona, uredjivanje sadrzaja, galerije, cena.
 6. Javni sajt salona sa sadrzajem iz baze, SEO.
 7. Email obavestenja, pa SMS. Zatim custom domeni, Dockerfile i deploy na Hetzner.
