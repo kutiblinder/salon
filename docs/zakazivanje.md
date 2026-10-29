@@ -39,12 +39,14 @@ Greške: `400` neispravan unos (`invalid_*`, `consent_required`), `404` salon/lo
   upravo zauzeo, probaju se ostali slobodni u tom trenutku (savepoint + ponovni pokušaj).
 - **Saglasnost o privatnosti** je obavezna (`privacyConsent: true`), vreme se čuva u
   `appointments.privacy_consent_at` (migracija `002`).
-- **Email provajder još nije izabran** (Resend ili Postmark). `src/lib/notify.ts` u produkciji samo
-  upozorava da email nije poslat; link se ne loguje u produkciji.
+- **Email:** Resend kad je `RESEND_API_KEY` postavljen; inače u razvoju konzola, u produkciji upozorenje.
 
 ## Otvoreno (pre puštanja u rad)
 
-- Ograničenje broja zahteva po IP-u/telefonu (zaštita od lažnih rezervacija koje drže slotove 15 min).
-- Izbor email provajdera i šablon poruke; zatim SMS kod kao alternativa.
-- Zakazivanje za ulogovanog klijenta (`client_user_id`) posle koraka 2 (autentifikacija).
-- Da li salon u statusu `draft` sme da prima rezervacije (sada sme, kao i `GET /api/availability`).
+- SMS kod kao alternativa email linku (Infobip ili sličan nalog).
+
+## Ulogovani klijent i draft (dodato u koraku 6)
+
+- Ulogovani klijent na domenu salona: `POST /api/appointments` bez `guest` polja, odmah `confirmed`, `client_user_id`.
+- Salon u `draft`: sajt se vidi, `GET /api/availability` i `POST /api/appointments` vraćaju 403.
+- Limit: 10 zakazivanja po IP-u na sat.

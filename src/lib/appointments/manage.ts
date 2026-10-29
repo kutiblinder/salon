@@ -115,6 +115,27 @@ export async function cancelByToken(
   return (await exists(client, organizationId, token)) ? { ok: false, error: 'not_allowed' } : { ok: false, error: 'not_found' };
 }
 
+/** Ulogovani klijent otkazuje svoj termin (do pocetka). */
+export async function cancelOwnAppointment(
+  client: PoolClient,
+  organizationId: string,
+  userId: string,
+  appointmentId: string,
+): Promise<ManageResult> {
+  const res = await client.query(
+    `UPDATE appointments a
+        SET status = 'cancelled_by_client', cancelled_at = now(), pending_expires_at = NULL
+      WHERE a.id = $1 AND a.organization_id = $2 AND a.client_user_id = $3 AND ${CAN_CANCEL}`,
+    [appointmentId, organizationId, userId],
+  );
+  if (res.rowCount) return { ok: true };
+  const found = await client.query(
+    `SELECT 1 FROM appointments WHERE id = $1 AND organization_id = $2 AND client_user_id = $3`,
+    [appointmentId, organizationId, userId],
+  );
+  return found.rowCount ? { ok: false, error: 'not_allowed' } : { ok: false, error: 'not_found' };
+}
+
 async function exists(client: PoolClient, organizationId: string, token: string): Promise<boolean> {
   const res = await client.query(
     `SELECT 1 FROM appointments WHERE manage_token_hash = $1 AND organization_id = $2`,

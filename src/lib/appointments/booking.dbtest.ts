@@ -8,7 +8,7 @@ import { randomUUID } from 'node:crypto';
 import { getPool, withTenant } from '../db';
 import { addDays, localDateOf, zonedTimeToUtcMs } from '../availability/time';
 import { getAvailability } from '../availability/load';
-import { createGuestAppointment } from './create';
+import { createClientAppointment, createGuestAppointment } from './create';
 import { expirePendingAppointments } from './expire';
 import { cancelByToken, confirmByToken, getAppointmentByToken } from './manage';
 import type { GuestBookingInput } from './validate';
@@ -20,6 +20,7 @@ const LOC = randomUUID();
 const SERVICE = randomUUID();
 const ANA = randomUUID();
 const BOJAN = randomUUID();
+const CLIENT = randomUUID();
 const SHIFT = randomUUID();
 const DATE = addDays(localDateOf(Date.now(), TZ), 7);
 const at = (hm: string) => zonedTimeToUtcMs(DATE, hm, TZ);
@@ -39,7 +40,9 @@ before(async () => {
       ('${ANA}', '${SERVICE}', NULL), ('${BOJAN}', '${SERVICE}', 60);
     INSERT INTO shift_templates (id, location_id, name, starts_at, ends_at) VALUES ('${SHIFT}', '${LOC}', 'Dan', '09:00', '17:00');
     INSERT INTO weekly_schedule (staff_id, location_id, weekday, shift_template_id)
-      SELECT s, '${LOC}', d, '${SHIFT}' FROM unnest(ARRAY['${ANA}', '${BOJAN}']::uuid[]) s, generate_series(0, 6) d;`;
+      SELECT s, '${LOC}', d, '${SHIFT}' FROM unnest(ARRAY['${ANA}', '${BOJAN}']::uuid[]) s, generate_series(0, 6) d;
+    INSERT INTO users (id, organization_id, email, full_name) VALUES
+      ('${CLIENT}', '${ORG}', 'klijent-${CLIENT.slice(0, 8)}@test.rs', 'Klijent');`;
   await getPool().query(sql);
 });
 
@@ -178,4 +181,34 @@ test('termin van smene ili van mreze koraka se odbija', async () => {
   // Usluga (45 min) mora da stane u smenu do 17:00; buffer ne mora
   assert.ok((await book(at('16:15'), ANA)).ok);
   assert.deepEqual(await book(at('16:30'), BOJAN), { ok: false, error: 'slot_unavailable' });
+});
+
+test('ulogovani klijent: termin je odmah potvrdjen i vezan za nalog', async () => {
+  const start = at('10:00');
+  const r = await withTenant(ORG, (c) =>
+    createClientAppointment(
+      c,
+      ORG,
+      {
+        locationId: LOC,
+        serviceId: SERVICE,
+        staffId: ANA,
+        startMs: start,
+        guest: { name: 'Klijent', phone: '+381641111111', email: 'klijent@test.rs' },
+        note: null,
+      },
+      Date.now(),
+      CLIENT,
+    ),
+  );
+  assert.ok(r.ok);
+  assert.equal(r.appointment.status, 'confirmed');
+  const row = (
+    await getPool().query(`SELECT client_user_id, status, pending_expires_at FROM appointments WHERE id = $1`, [
+      r.appointment.id,
+    ])
+  ).rows[0];
+  assert.equal(row.client_user_id, CLIENT);
+  assert.equal(row.status, 'confirmed');
+  assert.equal(row.pending_expires_at, null);
 });

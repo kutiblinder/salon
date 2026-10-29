@@ -3,12 +3,12 @@ import { headers } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { resolveRealmByHost } from '@/lib/auth/realm';
 import { getCurrentSession } from '@/lib/auth/session';
-import { SignInForm } from '../_auth/auth-forms';
+import { SignUpForm } from '../../_auth/auth-forms';
 
 export const dynamic = 'force-dynamic';
-export const metadata = { title: 'Prijava' };
+export const metadata = { title: 'Registracija' };
 
-export default async function SignInPage() {
+export default async function SignUpPage() {
   const h = await headers();
   const realm = await resolveRealmByHost(h.get('host'));
   if (!realm) redirect('/');
@@ -18,12 +18,13 @@ export default async function SignInPage() {
   return (
     <main className="mx-auto max-w-md p-6">
       <p className="text-sm text-neutral-500">{realm.tenant.name}</p>
-      <h1 className="mt-1 text-2xl font-semibold">Prijava</h1>
-      <SignInForm redirectTo="/nalog" />
+      <h1 className="mt-1 text-2xl font-semibold">Registracija</h1>
+      <p className="mt-2 text-sm text-neutral-600">Nalog važi za sve objekte salona {realm.tenant.name}.</p>
+      <SignUpForm redirectTo="/nalog" />
       <p className="mt-6 text-sm text-neutral-600">
-        Nemate nalog?{' '}
-        <Link href="/registracija" className="font-medium underline">
-          Registrujte se
+        Već imate nalog?{' '}
+        <Link href="/prijava" className="font-medium underline">
+          Prijavite se
         </Link>
       </p>
     </main>

@@ -1,0 +1,63 @@
+# Koristi se uz docker-compose.yml: docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+services:
+  migrate:
+    build:
+      context: .
+      target: migrate
+    env_file: .env
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: 'no'
+
+  app:
+    build: .
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+      STORAGE_DIR: /data/media
+    volumes:
+      - media:/data/media
+    depends_on:
+      db:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    expose:
+      - '3000'
+
+  expire:
+    image: alpine:3.20
+    restart: unless-stopped
+    environment:
+      CRON_SECRET: ${CRON_SECRET}
+    depends_on:
+      - app
+    entrypoint:
+      - /bin/sh
+      - -c
+      - while true; do wget -qO- --header="Authorization: Bearer $$CRON_SECRET" http://app:3000/api/jobs/expire-pending || true; sleep 60; done
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - '80:80'
+      - '443:443'
+    environment:
+      BASE_DOMAIN: ${BASE_DOMAIN}
+      CADDY_EMAIL: ${CADDY_EMAIL:-}
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - app
+
+volumes:
+  media:
+  caddy_data:
+  caddy_config:

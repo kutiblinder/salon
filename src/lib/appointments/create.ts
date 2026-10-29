@@ -27,8 +27,11 @@ export type CreateGuestAppointmentResult =
 
 const EXCLUSION_VIOLATION = '23P01';
 
-/** Ko unosi termin: gost sa sajta (ceka potvrdu) ili salon (telefonom/licno, odmah potvrdjen). */
-export type BookingSource = { kind: 'guest' } | { kind: 'staff'; createdByUserId: string };
+/** Ko unosi termin: gost (ceka potvrdu), salon (odmah potvrdjen) ili ulogovani klijent (odmah potvrdjen). */
+export type BookingSource =
+  | { kind: 'guest' }
+  | { kind: 'staff'; createdByUserId: string }
+  | { kind: 'client'; userId: string };
 
 export interface BookingInput extends Omit<GuestBookingInput, 'guest'> {
   guest: { name: string; phone: string; email: string | null };
@@ -44,6 +47,17 @@ export function createGuestAppointment(
   return createAppointment(client, organizationId, input, nowMs, { kind: 'guest' });
 }
 
+/** Zakazuje termin za ulogovanog klijenta; odmah confirmed, vezan za nalog. */
+export function createClientAppointment(
+  client: PoolClient,
+  organizationId: string,
+  input: BookingInput,
+  nowMs: number,
+  userId: string,
+): Promise<CreateGuestAppointmentResult> {
+  return createAppointment(client, organizationId, input, nowMs, { kind: 'client', userId });
+}
+
 /**
  * Upis termina. Slot se proverava istim algoritmom kao GET /api/availability; konacnu zastitu
  * od duplog zakazivanja daje constraint no_double_booking u bazi.
@@ -57,6 +71,7 @@ export async function createAppointment(
   source: BookingSource,
 ): Promise<CreateGuestAppointmentResult> {
   const byStaff = source.kind === 'staff';
+  const immediate = source.kind === 'staff' || source.kind === 'client';
   await expirePendingAppointments(client, organizationId);
 
   const locRes = await client.query<{ timezone: string }>(
@@ -112,17 +127,18 @@ export async function createAppointment(
       const ins = await client.query<{ id: string; pending_expires_at: Date | null }>(
         `INSERT INTO appointments (
            organization_id, location_id, staff_id, service_id,
-           guest_name, guest_phone, guest_email,
+           guest_name, guest_phone, guest_email, client_user_id,
            starts_at, ends_at,
            service_name_snapshot, price_snapshot, duration_snapshot_min,
            status, pending_expires_at, confirmed_at, client_note, manage_token_hash,
            privacy_consent_at, created_by_user_id)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12,
-                 CASE WHEN $16::uuid IS NULL THEN 'pending' ELSE 'confirmed' END::appointment_status,
-                 CASE WHEN $16::uuid IS NULL THEN now() + make_interval(mins => $13) END,
-                 CASE WHEN $16::uuid IS NOT NULL THEN now() END,
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $17,
+                 $8, $9, $10, $11, $12,
+                 CASE WHEN $18 THEN 'confirmed' ELSE 'pending' END::appointment_status,
+                 CASE WHEN $18 THEN NULL ELSE now() + make_interval(mins => $13) END,
+                 CASE WHEN $18 THEN now() END,
                  $14, $15,
-                 CASE WHEN $16::uuid IS NULL THEN now() END, $16::uuid)
+                 CASE WHEN $18 THEN NULL ELSE now() END, $16::uuid)
          RETURNING id, pending_expires_at`,
         [
           organizationId, input.locationId, staffId, input.serviceId,
@@ -131,6 +147,8 @@ export async function createAppointment(
           service.name, service.price, staff.durationMin,
           PENDING_TTL_MIN, input.note, hash,
           byStaff ? source.createdByUserId : null,
+          source.kind === 'client' ? source.userId : null,
+          immediate,
         ],
       );
       await client.query('RELEASE SAVEPOINT booking');
@@ -140,7 +158,7 @@ export async function createAppointment(
         token,
         appointment: {
           id: row.id,
-          status: byStaff ? 'confirmed' : 'pending',
+          status: immediate ? 'confirmed' : 'pending',
           startsAt: new Date(input.startMs).toISOString(),
           endsAt: new Date(endsAtMs).toISOString(),
           pendingExpiresAt: row.pending_expires_at?.toISOString() ?? null,

@@ -117,3 +117,23 @@ export function parseStaffBooking(fields: Record<string, unknown>): ValidationRe
   const b = { ...fields, staffId: fields.staffId === '' || fields.staffId === undefined ? null : fields.staffId };
   return parseBooking(b, fields, { consentRequired: false, emailRequired: false });
 }
+
+/** Ulogovani klijent: isti slot kao gost, bez guest polja (ime/telefon sa naloga). */
+export function parseClientBooking(
+  body: unknown,
+): ValidationResult<Omit<StaffBookingInput, 'guest'>> {
+  if (typeof body !== 'object' || body === null) return { ok: false, error: 'invalid_body' };
+  const b = { ...(body as Record<string, unknown>), staffId: (body as Record<string, unknown>).staffId ?? null };
+  const parsed = parseBooking(b, { name: 'klijent', phone: '+381641234567' }, { consentRequired: false, emailRequired: false });
+  if (!parsed.ok) return parsed;
+  return {
+    ok: true,
+    value: {
+      locationId: parsed.value.locationId,
+      serviceId: parsed.value.serviceId,
+      staffId: parsed.value.staffId,
+      startMs: parsed.value.startMs,
+      note: parsed.value.note,
+    },
+  };
+}

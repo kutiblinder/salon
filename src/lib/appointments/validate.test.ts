@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { normalizePhone, parseGuestBooking, parseStaffBooking } from './validate';
+import { normalizePhone, parseClientBooking, parseGuestBooking, parseStaffBooking } from './validate';
 
 const LOC = '22222222-2222-4222-8222-222222222222';
 const SRV = '33333333-3333-4333-8333-333333333331';
@@ -102,4 +102,16 @@ test('parseStaffBooking: proverava email kad je unet, telefon je obavezan', () =
   assert.ok(withEmail.ok);
   assert.equal(withEmail.value.guest.email, 'petar@primer.rs');
   assert.deepEqual(parseStaffBooking({ ...staffFields, phone: '' }), { ok: false, error: 'invalid_phone' });
+});
+
+test('parseClientBooking: slot bez gosta, saglasnost nije potrebna', () => {
+  const r = parseClientBooking({
+    locationId: LOC,
+    serviceId: SRV,
+    start: '2026-11-02T07:00:00.000Z',
+    staffId: null,
+  });
+  assert.ok(r.ok);
+  assert.equal(r.value.locationId, LOC);
+  assert.equal(r.value.staffId, null);
 });

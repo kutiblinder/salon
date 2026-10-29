@@ -70,4 +70,13 @@ SELECT '44444444-4444-4444-8444-444444444442', '22222222-2222-4222-8222-22222222
 FROM generate_series(0, 4) AS d
 ON CONFLICT DO NOTHING;
 
+INSERT INTO site_content (organization_id, page, key, language, value, status) VALUES
+  ('11111111-1111-4111-8111-111111111111', 'home', 'hero_title', 'sr-Latn', '"Frizer Zemun"', 'published'),
+  ('11111111-1111-4111-8111-111111111111', 'home', 'hero_subtitle', 'sr-Latn', '"Šišanje, fade i nega brade u Zemunu."', 'published'),
+  ('11111111-1111-4111-8111-111111111111', 'home', 'intro', 'sr-Latn', '"Zakažite termin online. Isti nalog važi za sve naše objekte."', 'published'),
+  ('11111111-1111-4111-8111-111111111111', 'about', 'title', 'sr-Latn', '"O nama"', 'published'),
+  ('11111111-1111-4111-8111-111111111111', 'about', 'body', 'sr-Latn', '"Demo salon za razvoj platforme. Tim radi ponedeljkom–subotom."', 'published'),
+  ('11111111-1111-4111-8111-111111111111', 'contact', 'note', 'sr-Latn', '"Parking ispred objekta."', 'published')
+ON CONFLICT DO NOTHING;
+
 COMMIT;

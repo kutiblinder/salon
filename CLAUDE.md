@@ -107,7 +107,7 @@ Pazi na kontrast boje teksta na primarnoj boji salona.
 ## Trenutno stanje (azurirati posle svakog vecog koraka)
 
 Gotovo i **provereno** na pravoj bazi (Postgres 16 u Dockeru, Next 16.4, `package-lock.json` u repou).
-`npm test`: 96 jedinicnih testova; `npm run test:db`: 39 integracionih testova; typecheck i `next build` prolaze;
+`npm test`: 98 jedinicnih testova; `npm run test:db`: 40 integracionih testova; typecheck i `next build` prolaze;
 migracije (001-003) prolaze na praznoj bazi.
 - `src/lib/availability/`: `time.ts` (zone, DST, datumi), `schedule.ts` (`resolveShift`),
   `slots.ts` (`computeSlots`, `mergeStaffSlots`, `pickStaff`), `load.ts` (SQL upiti, `isBookableDate`).
@@ -143,13 +143,16 @@ migracije (001-003) prolaze na praznoj bazi.
   Izmene kroz `runAdminAction()`; salon uvek iz `sessions.active_organization_id`.
 - **Admin: cene** (korak 5, deo 2): `/admin/cene` katalog usluga i cena/trajanje/buffer po lokaciji.
 - **Admin: galerija** (korak 5, deo 3): `/admin/galerija` WebP na disku (`STORAGE_DIR`), kvota po salonu, `/api/media/:id`.
+- **Javni sajt** (korak 6, `docs/sajt.md`): pocetna, o nama, cenovnik, galerija, kontakt, zakazivanje;
+  schema.org HairSalon; ulogovani klijent odmah confirmed; `/nalog` istorija + otkaz.
+- **Deploy** (`docs/deploy.md`): Dockerfile standalone, `docker-compose.prod.yml`, Caddy, expire cron.
 
 Poznate odluke i ogranicenja algoritma:
 - `appointments.ends_at` = pocetak + trajanje + buffer; sama usluga mora da stane u smenu, buffer ne mora.
 - Minimalno vreme unapred 30 min, horizont 90 dana (`load.ts`), kasnije podesavanje salona.
 - `pending` termini zauzimaju slot (kao i constraint u bazi) dok ih ne istekne `jobs:expire-pending`
   ili sledece zakazivanje u tom salonu (rok 15 min).
-- Email jos ne ide: `src/lib/notify.ts` u razvoju ispisuje link u konzolu servera.
+- Email: Resend (`RESEND_API_KEY`); bez kljuca u razvoju ispis u konzolu. SMS nije uvezen.
 - Integracioni testovi su `*.dbtest.ts` (`npm run test:db`), jedinicni `*.test.ts` (`npm test`, bez baze).
 - Lokalni docker korisnik je superuser, pa RLS tu ne filtrira; za produkciju napraviti posebnu
   ulogu aplikacije koja nije vlasnik tabela.
@@ -158,16 +161,14 @@ Poznate odluke i ogranicenja algoritma:
 
 1. ~~Kostur Next.js, konekcija na bazu, migracije, tenant resolution~~ (gotovo, provereno)
 2. ~~Autentifikacija, uloge, `can()`, audit log~~ (gotovo, vidi `docs/autentifikacija.md`).
-3. ~~Zakazivanje gosta~~ (gotovo, vidi `docs/zakazivanje.md`). Ostaje: zakazivanje za ulogovanog
-   klijenta (`client_user_id`, bez potvrde emailom) i istorija termina u "Moj nalog".
-   Pre produkcije: rate limit, email provajder, odluka o rezervacijama za salone u statusu `draft`.
+3. ~~Zakazivanje gosta~~ (gotovo, vidi `docs/zakazivanje.md`). Ulogovani klijent i istorija u `/nalog`.
+   Draft salon ne prima rezervacije. Rate limit 10/sat po IP. Email: Resend.
 4. ~~Panel vlasnika/zaposlenih: kalendar, termini, zaposleni, smene, odsustva~~ (gotovo,
-   vidi `docs/panel.md`). Gotovo: termini, smene, odsustva, zaposleni.
-   Svaka izmena kroz `runPanelAction()` / `ctx.require()` i `writeAudit()` u istoj transakciji.
-5. ~~Admin panel: izbor salona, uredjivanje sadrzaja, galerije, cena~~ (gotovo, vidi `docs/admin.md`).
-   Slike su na lokalnom disku (`sharp` -> WebP); S3/R2 kad bude nalog.
-6. Javni sajt salona sa sadrzajem iz baze, SEO.
-7. Email obavestenja, pa SMS. Zatim custom domeni, Dockerfile i deploy na Hetzner.
+   vidi `docs/panel.md`).
+5. ~~Admin panel: izbor salona, sadrzaj, cene, galerija~~ (gotovo, vidi `docs/admin.md`).
+6. ~~Javni sajt salona sa sadrzajem iz baze, SEO~~ (gotovo, vidi `docs/sajt.md`).
+7. Email (Resend), custom domeni (`organization_domains` + Caddy on_demand), Docker i deploy
+   (vidi `docs/deploy.md`). SMS ostaje za kasnije (treba nalog kod provajdera).
 
 ## Lokalno pokretanje
 

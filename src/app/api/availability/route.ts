@@ -27,6 +27,9 @@ export async function GET(request: Request) {
 
   const tenant = await resolveTenantByHost(request.headers.get('host'));
   if (!tenant) return Response.json({ error: 'tenant_not_found' }, { status: 404 });
+  if (tenant.status !== 'published') {
+    return Response.json({ error: 'not_published' }, { status: 403 });
+  }
 
   const nowMs = Date.now();
   const result = await withTenant(tenant.id, async (client) => {
