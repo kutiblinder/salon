@@ -1,4 +1,4 @@
-import { getAuth } from './auth';
+import { getAuth, refreshCustomAuthHosts } from './auth';
 import { resolveRealmByHost, runInRealm, type Realm } from './realm';
 
 export interface CurrentUser {
@@ -25,6 +25,7 @@ export interface CurrentSession {
 export async function getCurrentSession(headers: Headers): Promise<CurrentSession | null> {
   const realm = await resolveRealmByHost(headers.get('host'));
   if (!realm) return null;
+  await refreshCustomAuthHosts();
   const result = await runInRealm(realm, () => getAuth().api.getSession({ headers }));
   if (!result) return null;
 

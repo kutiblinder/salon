@@ -68,7 +68,9 @@ export function ContentForm({ salon, values }: { salon: SalonSettings; values: R
             {preview.weak ? ' · beli tekst ima slab kontrast, koristiće se crni' : ''}
           </p>
         )}
-        <p className="text-sm text-neutral-600">Poddomen: {salon.slug} — logo i galerija kad bude object storage.</p>
+        <p className="text-sm text-neutral-600">
+          Poddomen: {salon.slug}. Custom domen i galerija su u meniju admina.
+        </p>
       </section>
 
       <section className="space-y-4 rounded-lg border border-neutral-200 bg-white p-4">

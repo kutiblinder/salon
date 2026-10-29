@@ -5,11 +5,30 @@ import { Kysely, PostgresDialect } from 'kysely';
 import { normalizePhone } from '../appointments/validate';
 import { getPool } from '../db';
 import { realmScopedAdapter } from './adapter';
+import { invalidateAuthCache } from './cache';
 import { currentRealm } from './realm';
 
 declare global {
   // Jedna instanca izmedju hot-reload-a u razvoju
   var __salonAuth: ReturnType<typeof createAuth> | undefined;
+  var __salonAuthHostsKey: string | undefined;
+}
+
+let extraHosts: string[] = [];
+
+export { invalidateAuthCache };
+
+/** Učitava proverene custom domene u allowedHosts (prijava na frizer.rs). */
+export async function refreshCustomAuthHosts(): Promise<void> {
+  const res = await getPool().query<{ domain: string }>(
+    `SELECT domain FROM organization_domains WHERE verified_at IS NOT NULL ORDER BY domain`,
+  );
+  const hosts = res.rows.map((r) => r.domain);
+  const key = hosts.join(',');
+  extraHosts = hosts;
+  if (globalThis.__salonAuthHostsKey === key) return;
+  globalThis.__salonAuthHostsKey = key;
+  globalThis.__salonAuth = undefined;
 }
 
 const timestamps = { createdAt: 'created_at', updatedAt: 'updated_at' } as const;
@@ -29,6 +48,7 @@ function createAuth() {
     advanced: {
       cookiePrefix: 'salon',
       database: { generateId: 'uuid' },
+      trustedProxyHeaders: process.env.NODE_ENV === 'production',
     },
     emailAndPassword: {
       enabled: true,
@@ -105,11 +125,14 @@ function createAuth() {
   });
 }
 
-/** Domen platforme i subdomeni salona; custom domeni salona dodaju se kasnije. */
+/** Domen platforme, subdomeni salona i provereni custom domeni. */
 function authAllowedHosts(): string[] {
   const base = process.env.BASE_DOMAIN ?? 'localhost';
-  const hosts = [base, `*.${base}`];
-  if (base === 'localhost') hosts.push('localhost:*', '*.localhost:*');
+  const hosts = [base, `*.${base}`, ...extraHosts];
+  if (base === 'localhost') {
+    hosts.push('localhost:*', '*.localhost:*');
+    for (const d of extraHosts) hosts.push(`${d}:*`);
+  }
   return hosts;
 }
 

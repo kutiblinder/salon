@@ -1,7 +1,7 @@
 {
   email {$CADDY_EMAIL}
   on_demand_tls {
-    ask http://app:3000/api/health
+    ask http://app:3000/api/tls-ask
   }
 }
 

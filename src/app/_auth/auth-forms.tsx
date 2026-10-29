@@ -113,7 +113,13 @@ export function SignUpForm({ redirectTo }: { redirectTo: string }) {
       </Field>
       <label className="flex items-start gap-3 text-sm">
         <input name="privacyConsent" type="checkbox" required className="mt-1 h-5 w-5" />
-        <span>Saglasan/na sam da salon čuva moje ime, email i telefon radi zakazivanja termina.</span>
+        <span>
+          Saglasan/na sam sa{' '}
+          <a href="/privatnost" className="underline">
+            politikom privatnosti
+          </a>{' '}
+          (ime, email i telefon radi zakazivanja).
+        </span>
       </label>
       {error && <p className="text-red-700">{error}</p>}
       <button type="submit" disabled={busy} className={buttonClass}>

@@ -18,7 +18,7 @@ kao korisnika. Prijava: nalog sa `organization_id` NULL i ulogom `admin` na plat
   Kontrast belog/crnog teksta na toj boji se racuna u `src/lib/admin/theme.ts`.
 - Tekstovi: `site_content` kljuc-vrednost. Dozvoljeni kljucevi su u kodu (`CONTENT_FIELDS` u
   `src/lib/admin/content-types.ts`). Svaka izmena polja ide u `site_content_history`.
-- Logo i favicon nisu ovde (kasnije, isti mehanizam kao galerija).
+- Logo i favicon nisu ovde (kasnije, isti mehanizam kao galerija). Custom domen: `/admin/domeni`.
 
 ## Cenovnik (`/admin/cene`)
 
@@ -34,6 +34,9 @@ kao korisnika. Prijava: nalog sa `organization_id` NULL i ulogom `admin` na plat
 - Kvota: 40 slika, 5 MB original, 80 MB ukupno po salonu. Alt tekst je obavezan.
 - Javni URL: `/api/media/<mediaId>` samo na domenu tog salona (ili admin u tom salonu).
 
-## Sledece
+## Domeni (`/admin/domeni`)
 
-- Javni sajt (korak 6) cita iste tekstove, cene i galeriju.
+- Dozvola `content.edit`. Upis u `organization_domains`. Tenant i dalje samo iz `Host` headera.
+- Posle DNS A/AAAA na VPS, admin oznaci domen kao proveren (`verified_at`). Caddy pita
+  `GET /api/tls-ask?domain=` pre izdavanja sertifikata (samo platforma, postojeci slug, ili proveren domen).
+- `www` i apex se tretiraju kao isti salon ako je jedan od njih u tabeli.

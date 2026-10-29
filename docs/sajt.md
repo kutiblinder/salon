@@ -11,6 +11,7 @@ Isti izgled za sve salone. Tenant iz `Host` headera, nikad iz URL parametra.
 - `/kontakt` adresa, telefon, radno vreme (`location_hours`)
 - `/zakazivanje` čarobnjak (objekat, usluga, radnik, datum, slot, podaci)
 - `/prijava`, `/registracija`, `/nalog` (istorija + „Zakaži isto“ + otkaz)
+- `/privatnost`
 
 ## Pravila
 

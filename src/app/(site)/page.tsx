@@ -20,6 +20,15 @@ export default async function HomePage() {
           Nijedan salon nije izabran za ovaj domen. Za razvoj otvori <code>http://demo.localhost:3000</code> (posle{' '}
           <code>npm run db:seed</code>).
         </p>
+        <p className="mt-4 text-sm text-neutral-600">
+          <Link href="/admin" className="underline">
+            Admin
+          </Link>
+          {' · '}
+          <Link href="/privatnost" className="underline">
+            Politika privatnosti
+          </Link>
+        </p>
       </main>
     );
   }

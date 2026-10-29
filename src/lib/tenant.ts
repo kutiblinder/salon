@@ -1,5 +1,6 @@
 import { getPool } from './db';
 import { tenantKeyFromHost } from './tenant-key';
+import { domainAliases } from './tls-ask';
 
 export interface Tenant {
   id: string;
@@ -16,7 +17,7 @@ const SELECT_BY_DOMAIN = `
   SELECT o.id, o.name, o.slug, o.status, o.theme
   FROM organization_domains d
   JOIN organizations o ON o.id = d.organization_id
-  WHERE d.domain = $1 AND d.verified_at IS NOT NULL`;
+  WHERE d.domain = ANY($1::text[]) AND d.verified_at IS NOT NULL`;
 
 /**
  * Pronalazi salon po Host headeru. Vraca null za pocetnu stranicu platforme ili nepoznat salon.
@@ -30,6 +31,6 @@ export async function resolveTenantByHost(rawHost: string | null | undefined): P
   const result =
     key.kind === 'slug'
       ? await pool.query<TenantRow>(SELECT_BY_SLUG, [key.slug])
-      : await pool.query<TenantRow>(SELECT_BY_DOMAIN, [key.domain]);
+      : await pool.query<TenantRow>(SELECT_BY_DOMAIN, [domainAliases(key.domain)]);
   return result.rows[0] ?? null;
 }

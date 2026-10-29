@@ -50,7 +50,7 @@ export default async function SiteLayout({ children }: { children: React.ReactNo
     '@context': 'https://schema.org',
     '@type': 'HairSalon',
     name: salon.name,
-    url: `http://${h.get('host')}`,
+    url: `${process.env.NODE_ENV === 'production' ? 'https' : 'http'}://${h.get('host')}`,
     address: locations[0]
       ? {
           '@type': 'PostalAddress',
@@ -108,6 +108,10 @@ export default async function SiteLayout({ children }: { children: React.ReactNo
       <footer className="mx-auto max-w-3xl px-4 py-8 text-sm text-neutral-500">
         {salon.name}
         {locations[0]?.city ? ` · ${locations[0].city}` : ''}
+        {' · '}
+        <Link href="/privatnost" className="underline">
+          Privatnost
+        </Link>
       </footer>
     </div>
   );

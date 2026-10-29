@@ -306,7 +306,13 @@ export function BookingForm({
               </label>
               <label className="flex items-start gap-2 text-sm">
                 <input type="checkbox" name="privacyConsent" className="mt-1 size-4" required />
-                <span>Slažem se sa obradom podataka radi zakazivanja termina.</span>
+                <span>
+                  Slažem se sa{' '}
+                  <a href="/privatnost" className="underline">
+                    politikom privatnosti
+                  </a>{' '}
+                  (obrada podataka radi zakazivanja).
+                </span>
               </label>
             </>
           )}

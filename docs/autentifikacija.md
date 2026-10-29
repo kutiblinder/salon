@@ -76,7 +76,5 @@ Već se upisuju: pravljenje naloga skriptom (`user.create`) i ulazak/izlazak adm
 
 ## Otvoreno
 
-- Custom domeni salona: dodati ih u `baseURL.allowedHosts` (sada samo `*.BASE_DOMAIN`) dinamički iz
-  `organization_domains`.
-- Zaboravljena lozinka i potvrda emaila: posle izbora email provajdera.
+- Zaboravljena lozinka i potvrda emaila: kad bude tok za reset (Resend vec salje zakazivanje).
 - Rate limit u produkciji sa više instanci: deljeno skladište (npr. Postgres tabela).

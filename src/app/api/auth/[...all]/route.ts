@@ -1,4 +1,4 @@
-import { getAuth } from '@/lib/auth/auth';
+import { getAuth, refreshCustomAuthHosts } from '@/lib/auth/auth';
 import { resolveRealmByHost, runInRealm } from '@/lib/auth/realm';
 
 export const dynamic = 'force-dynamic';
@@ -7,6 +7,7 @@ export const dynamic = 'force-dynamic';
 async function handle(request: Request): Promise<Response> {
   const realm = await resolveRealmByHost(request.headers.get('host'));
   if (!realm) return Response.json({ error: 'tenant_not_found' }, { status: 404 });
+  await refreshCustomAuthHosts();
   return runInRealm(realm, () => getAuth().handler(request));
 }
 

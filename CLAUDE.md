@@ -107,7 +107,7 @@ Pazi na kontrast boje teksta na primarnoj boji salona.
 ## Trenutno stanje (azurirati posle svakog vecog koraka)
 
 Gotovo i **provereno** na pravoj bazi (Postgres 16 u Dockeru, Next 16.4, `package-lock.json` u repou).
-`npm test`: 98 jedinicnih testova; `npm run test:db`: 40 integracionih testova; typecheck i `next build` prolaze;
+`npm test`: 104 jedinicna testa; `npm run test:db`: 41 integracionih testova; typecheck i `next build` prolaze;
 migracije (001-003) prolaze na praznoj bazi.
 - `src/lib/availability/`: `time.ts` (zone, DST, datumi), `schedule.ts` (`resolveShift`),
   `slots.ts` (`computeSlots`, `mergeStaffSlots`, `pickStaff`), `load.ts` (SQL upiti, `isBookableDate`).
@@ -146,6 +146,8 @@ migracije (001-003) prolaze na praznoj bazi.
 - **Javni sajt** (korak 6, `docs/sajt.md`): pocetna, o nama, cenovnik, galerija, kontakt, zakazivanje;
   schema.org HairSalon; ulogovani klijent odmah confirmed; `/nalog` istorija + otkaz.
 - **Deploy** (`docs/deploy.md`): Dockerfile standalone, `docker-compose.prod.yml`, Caddy, expire cron.
+- **Custom domeni** (`/admin/domeni`): `organization_domains` + Caddy `GET /api/tls-ask`; Better Auth `allowedHosts`
+  se dopunjuje proverenim domenima. Politika privatnosti: `/privatnost`. Produkcijska uloga: `db/prod/app_role.sql`.
 
 Poznate odluke i ogranicenja algoritma:
 - `appointments.ends_at` = pocetak + trajanje + buffer; sama usluga mora da stane u smenu, buffer ne mora.
@@ -167,8 +169,8 @@ Poznate odluke i ogranicenja algoritma:
    vidi `docs/panel.md`).
 5. ~~Admin panel: izbor salona, sadrzaj, cene, galerija~~ (gotovo, vidi `docs/admin.md`).
 6. ~~Javni sajt salona sa sadrzajem iz baze, SEO~~ (gotovo, vidi `docs/sajt.md`).
-7. Email (Resend), custom domeni (`organization_domains` + Caddy on_demand), Docker i deploy
-   (vidi `docs/deploy.md`). SMS ostaje za kasnije (treba nalog kod provajdera).
+7. ~~Email (Resend), custom domeni, Docker i deploy~~ (gotovo, vidi `docs/deploy.md`).
+   SMS ostaje za kasnije (treba nalog kod provajdera). Pravi Hetzner VPS kad budu nalog i DNS.
 
 ## Lokalno pokretanje
 
